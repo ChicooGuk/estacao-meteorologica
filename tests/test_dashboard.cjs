@@ -1,6 +1,17 @@
 const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert/strict');
+const configSource = fs.readFileSync(require('path').join(__dirname,'../dashboard/config.js'),'utf8');
+for (const hostname of ['estacao-metedologica.web.app','estacao-metedologica.firebaseapp.com']) {
+  const configContext = {window:{location:{hostname}}};
+  vm.runInNewContext(configSource, configContext);
+  assert.equal(configContext.window.ESTACAO_API_BASE,'https://joy-except-methodology-golden.trycloudflare.com');
+}
+for (const hostname of ['localhost','127.0.0.1','joy-except-methodology-golden.trycloudflare.com']) {
+  const configContext = {window:{location:{hostname}}};
+  vm.runInNewContext(configSource, configContext);
+  assert.equal(configContext.window.ESTACAO_API_BASE,undefined,'API local permanece na mesma origem');
+}
 const elements = new Map();
 const element = id => {
   if (!elements.has(id)) elements.set(id, {innerText:'--', innerHTML:'', style:{}, classList:{add(){}, remove(){}, toggle(){}}, addEventListener(){}});
