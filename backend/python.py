@@ -272,7 +272,7 @@ async def lifespan(app):
 app = FastAPI(title="Estacao Meteorologica", lifespan=lifespan)
 app.add_middleware(CORSMiddleware,
     allow_origins=[s for s in os.getenv("CORS_ORIGINS", "http://localhost:5500").split(",") if s],
-    allow_methods=["GET", "POST"], allow_headers=["Content-Type", "ngrok-skip-browser-warning"],
+    allow_methods=["GET", "POST", "PUT"], allow_headers=["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
     max_age=3600)
 
 
@@ -311,6 +311,47 @@ def receber_leituras(dados: TelemetriaSchema):
     except Exception as exc:
         log.exception("Falha na ingestao HTTP")
         raise HTTPException(503, "Persistencia indisponivel") from exc
+
+
+class LocalizacaoSchema(BaseModel):
+    model_config = ConfigDict(allow_inf_nan=False, extra="forbid")
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+def autorizar_localizacao(authorization: str | None = Header(default=None)):
+    token = os.getenv("LOCATION_ADMIN_TOKEN", "")
+    if not token:
+        raise HTTPException(403, "Configure LOCATION_ADMIN_TOKEN no backend para habilitar o ajuste")
+    if not secrets.compare_digest((authorization or "").encode(), ("Bearer " + token).encode()):
+        raise HTTPException(401, "Chave administrativa incorreta")
+
+
+@app.put("/api/estacoes/{id_estacao}/localizacao", dependencies=[Depends(autorizar_localizacao)])
+def salvar_localizacao(id_estacao: int, dados: LocalizacaoSchema):
+    if id_estacao <= 0:
+        raise HTTPException(422, "Identificador invalido")
+    try:
+        with conexao() as conn:
+            cur = CursorMedido(conn.cursor(dictionary=True))
+            try:
+                cur.execute("SELECT id_estacao FROM estacao WHERE id_estacao=%s FOR UPDATE", (id_estacao,))
+                if not cur.fetchone():
+                    raise HTTPException(404, "Estacao nao cadastrada")
+                cur.execute("UPDATE estacao SET latitude=%s, longitude=%s WHERE id_estacao=%s",
+                            (dados.latitude, dados.longitude, id_estacao))
+                conn.commit()
+                return {"latitude": dados.latitude, "longitude": dados.longitude}
+            except Exception:
+                conn.rollback()
+                raise
+            finally:
+                cur.close()
+    except HTTPException:
+        raise
+    except Exception as exc:
+        log.exception("Falha ao salvar localizacao")
+        raise HTTPException(503, "Nao foi possivel salvar a localizacao") from exc
 
 
 @app.get("/api/leituras/ultimas-24h")

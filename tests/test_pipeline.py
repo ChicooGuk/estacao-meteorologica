@@ -22,6 +22,33 @@ BASE = dict(id_estacao=1, boot_id="abc", sequencia=1, uptime_ms=2500,
             temperatura=24, umidade=50, pressao=930, qualidade_ar=None,
             luminosidade=60, estado_sensores={"qualidade_ar": "indisponivel"})
 
+class LocationTests(unittest.TestCase):
+    def test_location_validation_and_authentication(self):
+        from fastapi.testclient import TestClient
+        client = TestClient(api.app)
+        url = '/api/estacoes/1/localizacao'
+        point = {'latitude': -23.630317, 'longitude': -46.694328}
+        with patch.dict(os.environ, {'LOCATION_ADMIN_TOKEN': ''}):
+            self.assertEqual(client.put(url, json=point).status_code, 403)
+        with patch.dict(os.environ, {'LOCATION_ADMIN_TOKEN': 'private-test-key'}):
+            self.assertEqual(client.put(url, json=point).status_code, 401)
+            headers = {'Authorization': 'Bearer private-test-key'}
+            self.assertEqual(client.put(url, json=point | {'latitude': 91}, headers=headers).status_code, 422)
+            conn = MagicMock()
+            cur = conn.cursor.return_value
+            cur.fetchone.return_value = {'id_estacao': 1}
+            with patch.object(api, 'conexao') as connection:
+                connection.return_value.__enter__.return_value = conn
+                response = client.put(url, json=point, headers=headers)
+                self.assertEqual(response.status_code, 200)
+                conn.commit.assert_called_once()
+                update = cur.execute.call_args
+                self.assertIn('UPDATE estacao', update.args[0])
+                self.assertEqual(update.args[1], (point['latitude'], point['longitude'], 1))
+                cur.fetchone.return_value = None
+                self.assertEqual(client.put(url, json=point, headers=headers).status_code, 404)
+                conn.rollback.assert_called_once()
+
 class ValidationTests(unittest.TestCase):
     def test_physical_and_nonfinite_values_rejected(self):
         for value in (-100, float("nan"), float("inf")):

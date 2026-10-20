@@ -30,8 +30,8 @@ setInterval(() => {
 // ------------------------------------------------------------------------------
 // 4. MAPA INTERATIVO (LEAFLET.JS) E SINCRONIZAÇÃO DE LOCALIZAÇÃO REAL
 // ------------------------------------------------------------------------------
-const DEFAULT_LAT = -23.55052;
-const DEFAULT_LNG = -46.63330;
+const DEFAULT_LAT = -23.630317684911716;
+const DEFAULT_LNG = -46.694328195767014;
 
 let map = null;
 let stationMarker = null;
@@ -53,24 +53,10 @@ function inicializarMapa() {
   try {
     if (typeof L === 'undefined') return;
 
-    // Recupera posição salva pelo usuário ou adota o padrão
-    let savedLat = NaN;
-    let savedLng = NaN;
-    let savedSource = localStorage.getItem('estacao_source') || 'Detectando GPS...';
+    const initialLat = DEFAULT_LAT;
+    const initialLng = DEFAULT_LNG;
+    const savedSource = 'Localizacao aproximada';
 
-    // Se estiver gravado o centro antigo de SP/República (-23.55052), limpa o cache para forçar a localização real
-    if (!isNaN(savedLat) && Math.abs(savedLat - DEFAULT_LAT) < 0.001) {
-      localStorage.removeItem('estacao_lat');
-      localStorage.removeItem('estacao_lng');
-      localStorage.removeItem('estacao_source');
-      savedLat = null;
-      savedLng = null;
-      savedSource = 'Detectando GPS...';
-    }
-
-    const initialLat = (!isNaN(savedLat) && savedLat !== 0) ? savedLat : DEFAULT_LAT;
-    const initialLng = (!isNaN(savedLng) && savedLng !== 0) ? savedLng : DEFAULT_LNG;
-    
     map = L.map('map', {
       zoomControl: true,
       attributionControl: false
@@ -123,6 +109,11 @@ function inicializarMapa() {
       title: "Posição cadastrada da estação"
     }).addTo(map);
 
+    stationMarker.on('drag', mostrarCoordenadasAjuste);
+    document.getElementById('btnEditLocation').addEventListener('click', iniciarAjusteLocalizacao);
+    document.getElementById('btnCancelLocation').addEventListener('click', cancelarAjusteLocalizacao);
+    document.getElementById('locationForm').addEventListener('submit', salvarAjusteLocalizacao);
+
     stationMarker.bindPopup(`
       <div style="font-size:0.85rem; line-height:1.45; font-family:'Plus Jakarta Sans', sans-serif;">
         <strong style="color:var(--accent-forest); font-weight:700;">Localização da Estação</strong><br>
@@ -140,8 +131,84 @@ function inicializarMapa() {
   }
 }
 
+let editandoLocalizacao = false;
+let salvandoLocalizacao = false;
+let ultimaLocalizacaoSalva = null;
+
+function mostrarCoordenadasAjuste() {
+  const ponto = stationMarker.getLatLng();
+  document.getElementById('geoLat').innerText = ponto.lat.toFixed(6);
+  document.getElementById('geoLng').innerText = ponto.lng.toFixed(6);
+}
+function iniciarAjusteLocalizacao() {
+  if (!stationMarker || salvandoLocalizacao) return;
+  editandoLocalizacao = true;
+  document.getElementById('locationForm').hidden = false;
+  document.getElementById('btnEditLocation').hidden = true;
+  document.getElementById('locationStatus').innerText = 'Arraste o marcador. A alteracao so sera aplicada ao salvar.';
+  const ponto = ultimaLocalizacaoSalva || {lat: DEFAULT_LAT, lng: DEFAULT_LNG};
+  stationMarker.setLatLng([ponto.lat, ponto.lng]).setOpacity(1);
+  stationMarker.dragging.enable();
+  map.setView([ponto.lat, ponto.lng], 18);
+  mostrarCoordenadasAjuste();
+}
+function cancelarAjusteLocalizacao() {
+  if (salvandoLocalizacao) return;
+  editandoLocalizacao = false;
+  stationMarker.dragging.disable();
+  document.getElementById('locationForm').hidden = true;
+  document.getElementById('btnEditLocation').hidden = false;
+  document.getElementById('locationAdminKey').value = '';
+  if (ultimaLocalizacaoSalva) {
+    atualizarCoordenadasMapa(ultimaLocalizacaoSalva.lat, ultimaLocalizacaoSalva.lng, 'Cadastro da estacao');
+  } else {
+    stationMarker.setOpacity(0);
+    document.getElementById('geoLat').innerText = '--';
+    document.getElementById('geoLng').innerText = '--';
+  }
+  document.getElementById('locationStatus').innerText = '';
+}
+async function salvarAjusteLocalizacao(event) {
+  event.preventDefault();
+  if (!editandoLocalizacao || salvandoLocalizacao) return;
+  const chave = document.getElementById('locationAdminKey').value;
+  if (!chave) return;
+  const ponto = stationMarker.getLatLng();
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10000);
+  const status = document.getElementById('locationStatus');
+  salvandoLocalizacao = true;
+  stationMarker.dragging.disable();
+  document.getElementById('btnSaveLocation').disabled = true;
+  try {
+    const resposta = await fetch(`${window.ESTACAO_API_BASE || ''}/api/estacoes/1/localizacao`, {
+      method: 'PUT', signal: controller.signal,
+      headers: {'Content-Type': 'application/json', Authorization: `Bearer ${chave}`,
+        ...(window.ESTACAO_API_BASE ? {'ngrok-skip-browser-warning': '1'} : {})},
+      body: JSON.stringify({latitude: ponto.lat, longitude: ponto.lng})
+    });
+    if (!resposta.ok) {
+      const erro = await resposta.json().catch(() => ({}));
+      throw new Error(typeof erro.detail === 'string' ? erro.detail : 'Falha ao salvar. Verifique o backend e a permissao UPDATE no MySQL.');
+    }
+    const salva = await resposta.json();
+    ultimaLocalizacaoSalva = {lat: salva.latitude, lng: salva.longitude};
+    salvandoLocalizacao = false;
+    cancelarAjusteLocalizacao();
+    status.innerText = 'Localizacao salva no banco. Aproximada, definida manualmente.';
+  } catch (erro) {
+    status.innerText = erro.name === 'AbortError' ? 'Tempo esgotado. Confira a conexao e tente novamente.' : erro.message;
+    stationMarker.dragging.enable();
+  } finally {
+    clearTimeout(timer);
+    salvandoLocalizacao = false;
+    document.getElementById('btnSaveLocation').disabled = false;
+    document.getElementById('locationAdminKey').value = '';
+  }
+}
+
 function atualizarCoordenadasMapa(lat, lng, fonte = 'GPS Dispositivo', precisao = null) {
-  if (fonte !== 'Cadastro da estacao') return;
+  if (fonte !== 'Cadastro da estacao' || editandoLocalizacao) return;
   const mudou = currentCoords.lat !== lat || currentCoords.lng !== lng;
   currentCoords = { lat, lng, source: fonte };
   if (stationMarker) stationMarker.setLatLng([lat, lng]);
@@ -155,8 +222,8 @@ function atualizarCoordenadasMapa(lat, lng, fonte = 'GPS Dispositivo', precisao 
 
   if (geoLatEl) geoLatEl.innerText = lat.toFixed(5);
   if (geoLngEl) geoLngEl.innerText = lng.toFixed(5);
-  if (geoSourceEl) geoSourceEl.innerText = fonte;
-  if (geoAccuracyEl) geoAccuracyEl.innerText = precisao ? `±${precisao} m` : 'Definido';
+  if (geoSourceEl) geoSourceEl.innerText = 'Definida manualmente';
+  if (geoAccuracyEl) geoAccuracyEl.innerText = 'Aproximada';
   if (popupTitleEl) popupTitleEl.innerText = `${fonte} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})`;
 }
 
@@ -639,6 +706,7 @@ async function atualizarDashboard() {
     renderizarTabelaHistorico();
     const estacao = data.estacao;
     if (estacao && Number.isFinite(estacao.latitude) && Number.isFinite(estacao.longitude)) {
+      ultimaLocalizacaoSalva = {lat: estacao.latitude, lng: estacao.longitude};
       atualizarCoordenadasMapa(estacao.latitude, estacao.longitude, 'Cadastro da estacao');
       if (stationMarker) stationMarker.setOpacity(1);
     }

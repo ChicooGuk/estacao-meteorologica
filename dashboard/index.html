@@ -261,16 +261,27 @@
           <div id="map"></div>
         </div>
 
+        <div style="padding:16px">
+          <button type="button" id="btnEditLocation" class="btn-action">Ajustar localiza&#231;&#227;o da esta&#231;&#227;o</button>
+          <form id="locationForm" hidden>
+            <p>Arraste o marcador. Localiza&#231;&#227;o aproximada: confira o ponto no local.</p>
+            <label for="locationAdminKey">Chave administrativa</label>
+            <input id="locationAdminKey" type="password" required autocomplete="off" style="max-width:100%" />
+            <button id="btnSaveLocation" type="submit" class="btn-action">Salvar localiza&#231;&#227;o</button>
+            <button id="btnCancelLocation" type="button" class="btn-action">Cancelar</button>
+          </form>
+          <p id="locationStatus" role="status" aria-live="polite"></p>
+        </div>
         <div class="location-bar">
           <div class="loc-item">
-            <span class="loc-label">Endereço:</span>
+            <span class="loc-label">Localiza&#231;&#227;o:</span>
             <strong id="geoSource">Aguardando cadastro da estação</strong>
             <small class="loc-hint">Posição definida pelas coordenadas cadastradas da estação.</small>
           </div>
           <div class="loc-coords">
             <span>Lat: <strong id="geoLat">--</strong></span>
             <span>Lng: <strong id="geoLng">--</strong></span>
-            <span>Precisão: <strong id="geoAccuracy">Aferindo...</strong></span>
+            <span>Localiza&#231;&#227;o: <strong id="geoAccuracy">Aproximada</strong></span>
           </div>
         </div>
       </div>
@@ -795,6 +806,6 @@
 
   <!-- Lógica Principal do Dashboard -->
   <script src="config.js?v=3"></script>
-  <script src="app.js?v=3.3"></script>
+  <script src="app.js?v=3.4"></script>
 </body>
 </html>
