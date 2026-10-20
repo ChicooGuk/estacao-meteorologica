@@ -1,0 +1,2520 @@
+/* ==============================================================================
+   ESTAÇÃO METEOROLÓGICA INTELIGENTE (ESP32 TELEMETRIA)
+   Design System de Alto Padrão • Layout Full-Width Profissional • Bordas Suaves
+   Modo Claro / Modo Escuro • Animações de Entrada Escalonadas & Efeitos em Tempo Real
+   ============================================================================== */
+
+:root {
+  /* Tipografia Exata do Figma Modern Product Launch */
+  --font-figma-title: 'Radio Canada Big', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-figma-body: 'Source Serif Pro', 'Source Serif 4', Georgia, serif;
+  --font-editorial: 'Source Serif Pro', 'Source Serif 4', Georgia, serif;
+  --font-sans: 'Radio Canada Big', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'Space Grotesk', var(--font-sans);
+
+  /* PALETA MODO CLARO (Inspirada no Figma Modern Product Launch do usuário) */
+  --bg-page: #FFFFFF;
+  --bg-card: #F6F8FB;
+  --bg-card-hover: #EEF2F7;
+  --bg-subtle: #F0F3F8;
+  --bg-subtle-hover: #E5EBF4;
+  
+  --bg-dark-accent: #111827;
+  --bg-dark-hover: #000000;
+
+  /* Linhas Minimalistas de Divisão (Layout Sem Cards) */
+  --border-hairline: #D1D5DB;
+  --border-hairline-subtle: #E5E7EB;
+  --border-subtle: transparent;
+  --border-card: transparent;
+  --border-card-hover: transparent;
+
+  --text-primary: #000000;
+  --text-secondary: #2B2D2F;
+  --text-muted: #6B7280;
+  --text-inverse: #FFFFFF;
+
+  --accent-forest: #1F2937;
+  --accent-forest-hover: #111827;
+  --accent-sage: #E5E7EB;
+  --accent-sage-soft: #F3F4F6;
+
+  /* Cores Semânticas das Grandezas */
+  --color-temp: #C34432;
+  --color-temp-bg: rgba(195, 68, 50, 0.08);
+  --color-press: #1F2937;
+  --color-press-bg: rgba(31, 41, 55, 0.06);
+  --color-humid: #2563EB;
+  --color-humid-bg: rgba(37, 99, 235, 0.08);
+  --color-air: #059669;
+  --color-air-bg: rgba(5, 150, 105, 0.08);
+  --color-light: #D97706;
+  --color-light-bg: rgba(217, 119, 6, 0.08);
+
+  --status-online: #059669;
+  --status-offline: #DC2626;
+  --alert-bg: #FEF2F2;
+  --alert-border: rgba(220, 38, 38, 0.2);
+  --alert-text: #991B1B;
+
+  /* Formas Exatas do Figma (border-radius: 16px) */
+  --radius-card: 16px;
+  --radius-inner: 12px;
+  --radius-button: 8px;
+  --radius-pill: 9999px;
+  
+  --shadow-subtle: none;
+  --shadow-card: none;
+
+  --transition-theme: background-color 0.3s cubic-bezier(0.16, 1, 0.3, 1), 
+                      color 0.25s ease, 
+                      border-color 0.25s ease, 
+                      box-shadow 0.25s ease;
+}
+
+/* ==============================================================================
+   PALETA MODO ESCURO (Obsidian / Ardósia Nórdica com Acentos Orgânicos)
+   ============================================================================== */
+[data-theme="dark"] {
+  --bg-page: #0E1210;
+  --bg-card: #151A16;
+  --bg-card-hover: #1C231E;
+  --bg-subtle: #1C231E;
+  --bg-subtle-hover: #232B25;
+
+  --bg-dark-accent: #485E3B;
+  --bg-dark-hover: #587349;
+
+  --border-hairline: rgba(255, 255, 255, 0.16);
+  --border-hairline-subtle: rgba(255, 255, 255, 0.08);
+  --border-subtle: transparent;
+  --border-card: transparent;
+  --border-card-hover: transparent;
+
+  --text-primary: #FFFFFF;
+  --text-secondary: #E5E7EB;
+  --text-muted: #9CA3AF;
+  --text-inverse: #121611;
+
+  --accent-forest: #4F6A40;
+  --accent-forest-hover: #5D7C4C;
+  --accent-sage: #283325;
+  --accent-sage-soft: #1E271C;
+
+  --color-temp: #FB7185;
+  --color-temp-bg: rgba(251, 113, 133, 0.12);
+  --color-press: #34D399;
+  --color-press-bg: rgba(52, 211, 153, 0.12);
+  --color-humid: #38BDF8;
+  --color-humid-bg: rgba(56, 189, 248, 0.12);
+  --color-air: #4ADE80;
+  --color-air-bg: rgba(74, 222, 128, 0.12);
+  --color-light: #FACC15;
+  --color-light-bg: rgba(250, 204, 21, 0.12);
+
+  --status-online: #34D399;
+  --status-offline: #FB7185;
+  --alert-bg: rgba(251, 113, 133, 0.12);
+  --alert-border: rgba(251, 113, 133, 0.25);
+  --alert-text: #FECDD3;
+
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.35);
+  --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.45);
+}
+
+/* Reset Global */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Transições Suaves entre Temas */
+body, .main-header, .metric-card, .stats-panel, .panel-card, .history-panel, 
+.info-panel, .stat-card, .diag-item, .location-bar, .history-table thead th, 
+.history-table tbody td, .clock-badge, .status-badge, .btn-theme-toggle,
+.tabs-nav, .tab-btn, .compare-card, .sp-meta-bar, .sp-cond-card, .science-reason-card {
+  transition: var(--transition-theme);
+}
+
+/* Layout Full-Width que Ocupa Todo o Espaço da Tela */
+body {
+  background-color: var(--bg-page);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  width: 100%;
+  padding: 1.5rem 2.5rem;
+  overflow-x: hidden;
+}
+
+.dashboard-wrapper {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+/* Material Symbols Utility */
+.material-symbols-rounded {
+  font-family: 'Material Symbols Rounded';
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
+  font-variation-settings: 'FILL' 0, 'wght' 450, 'GRAD' 0, 'opsz' 24;
+}
+
+.icon-xs { font-size: 14px; }
+.icon-sm { font-size: 16px; }
+.icon-md { font-size: 20px; }
+.icon-lg { font-size: 26px; }
+
+/* ------------------------------------------------------------------------------
+   ANIMAÇÕES DE ENTRADA ESCALONADAS (STAGGERED ENTRANCE CASCADING)
+   ------------------------------------------------------------------------------ */
+@keyframes fadeInDown {
+  0% { opacity: 0; transform: translateY(-16px); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: none; }
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+/* Aplicação Escalonada e Suave das Animações de Entrada */
+.main-header {
+  animation: fadeInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.hero-section {
+  animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.08s both;
+}
+
+.metrics-grid .metric-card:nth-child(1) { animation: fadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.14s both; }
+.metrics-grid .metric-card:nth-child(2) { animation: fadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.19s both; }
+.metrics-grid .metric-card:nth-child(3) { animation: fadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.24s both; }
+.metrics-grid .metric-card:nth-child(4) { animation: fadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.29s both; }
+.metrics-grid .metric-card:nth-child(5) { animation: fadeInUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) 0.34s both; }
+
+.stats-panel {
+  animation: fadeInUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.38s both;
+}
+
+.panels-grid .chart-panel {
+  animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.44s both;
+}
+
+.panels-grid .map-panel {
+  animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.48s both;
+}
+
+.history-panel {
+  animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.54s both;
+}
+
+.info-panel {
+  animation: fadeInUp 0.75s cubic-bezier(0.16, 1, 0.3, 1) 0.58s both;
+}
+
+.main-footer {
+  animation: fadeIn 0.8s ease 0.62s both;
+}
+
+/* Pulso Dinâmico quando Novos Valores Chegam via Telemetria */
+@keyframes valuePulse {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.05); color: var(--accent-forest); }
+  100% { transform: scale(1); color: var(--text-primary); }
+}
+
+.value-updated {
+  animation: valuePulse 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ------------------------------------------------------------------------------
+   1. TOPBAR HEADER (DIRETO NO LAYOUT DA PÁGINA COM LINHA MINIMALISTA)
+   ------------------------------------------------------------------------------ */
+.main-header {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 1.25rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  box-shadow: none !important;
+  margin-bottom: 2.5rem;
+  width: 100%;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+}
+
+.brand-symbol {
+  width: 38px;
+  height: 38px;
+  background: transparent !important;
+  color: var(--accent-forest);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--text-primary) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .brand-symbol {
+  background: transparent !important;
+  border-color: #FFFFFF !important;
+  color: #FFFFFF;
+}
+
+.brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand-title {
+  font-family: var(--font-sans);
+  font-size: 1.2rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  line-height: 1.15;
+}
+
+.brand-dot {
+  color: var(--accent-forest);
+}
+
+.brand-subtitle {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-top: 1px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+/* Botões Globais: Touch Otimizado para Mobile */
+button,
+.btn-theme-toggle,
+.btn-demo,
+.btn-location,
+.btn-action,
+.alert-close {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: pointer;
+  position: relative;
+  z-index: 5;
+}
+
+/* Botão Alternador Modo Claro / Escuro */
+.btn-theme-toggle {
+  background: transparent !important;
+  border: 1px solid var(--border-hairline) !important;
+  color: var(--text-primary);
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-button);
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .btn-theme-toggle {
+  background: transparent !important;
+}
+
+.btn-theme-toggle:hover {
+  background: var(--bg-subtle-hover) !important;
+  transform: translateY(-1px);
+}
+
+.btn-theme-toggle:active {
+  transform: scale(0.96);
+}
+
+/* Botão Modo Demo com Bordas Suaves */
+.btn-demo {
+  background: var(--accent-forest);
+  color: #FFFFFF;
+  border: none !important;
+  padding: 0.5rem 1.05rem;
+  border-radius: var(--radius-button);
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+  box-shadow: none !important;
+}
+
+.btn-demo:hover {
+  background: var(--accent-forest-hover);
+  transform: translateY(-1px);
+}
+
+.btn-demo:active {
+  transform: scale(0.96);
+}
+
+.clock-badge {
+  background: transparent !important;
+  border: 1px solid var(--border-hairline) !important;
+  color: var(--text-secondary);
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-button);
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .clock-badge {
+  background: transparent !important;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent !important;
+  border: 1px solid var(--border-hairline) !important;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-button);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .status-badge {
+  background: transparent !important;
+}
+
+/* Radar Beacon Pulsante no Status Online */
+.status-dot {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #d97706;
+}
+
+.status-badge.online .status-dot {
+  background: var(--status-online);
+}
+
+.status-badge.online .status-dot::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--status-online);
+  animation: radarPing 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+  opacity: 0.8;
+}
+
+@keyframes radarPing {
+  75%, 100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+.status-badge.offline .status-dot {
+  background: var(--status-offline);
+  box-shadow: 0 0 0 2px rgba(195, 68, 50, 0.2);
+}
+
+/* ------------------------------------------------------------------------------
+   2. SEÇÃO HERO EDITORIAL
+   ------------------------------------------------------------------------------ */
+.hero-section {
+  padding: 0.5rem 0 2rem 0;
+  width: 100%;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: #F6F8FB;
+  color: var(--accent-forest);
+  border: none !important;
+  border-radius: var(--radius-pill);
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.85rem;
+}
+
+[data-theme="dark"] .hero-badge {
+  background: #1C231E;
+  color: #86EFAC;
+}
+
+.hero-title {
+  font-family: var(--font-editorial);
+  font-size: clamp(2.4rem, 4.5vw, 3.6rem);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  color: var(--text-primary);
+  margin-bottom: 0.65rem;
+}
+
+.hero-dot {
+  color: var(--accent-forest);
+}
+
+.hero-description {
+  font-size: 1.02rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 900px;
+}
+
+/* ------------------------------------------------------------------------------
+   3. BANNER DE ALERTA DINÂMICO (RF04)
+   ------------------------------------------------------------------------------ */
+.alert-banner {
+  background: var(--alert-bg);
+  border: 1px solid var(--alert-border);
+  color: var(--alert-text);
+  border-radius: var(--radius-card);
+  padding: 0.9rem 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  animation: fadeInDown 0.35s ease;
+}
+
+.alert-banner.hidden {
+  display: none;
+}
+
+.alert-icon-wrapper {
+  width: 32px;
+  height: 32px;
+  background: rgba(195, 68, 50, 0.12);
+  border-radius: var(--radius-inner);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--color-temp);
+}
+
+.alert-content {
+  flex-grow: 1;
+}
+
+.alert-content strong {
+  display: block;
+  font-size: 0.88rem;
+  margin-bottom: 0.1rem;
+}
+
+.alert-content p {
+  font-size: 0.8rem;
+  opacity: 0.9;
+}
+
+.alert-close {
+  background: transparent;
+  border: none;
+  font-size: 1.3rem;
+  color: var(--alert-text);
+  cursor: pointer;
+  padding: 0 0.5rem;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.alert-close:hover {
+  opacity: 1;
+}
+
+/* ==============================================================================
+   4. LAYOUT DIRETO NA PÁGINA (SEM CARDS • LINHAS MINIMALISTAS)
+   Conforme solicitação do usuário:
+   - Sem cards (background: transparent, border-radius: 0)
+   - Conteúdo escrito diretamente no layout da página
+   - Apenas uma linha minimalista sutil (hairline) dividindo as colunas
+   ============================================================================== */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 0;
+  width: 100%;
+  border-top: 1px solid var(--border-hairline);
+  border-bottom: 1px solid var(--border-hairline);
+  padding: 3.5rem 0;
+  margin-bottom: 3.5rem;
+  background: transparent;
+}
+
+.metric-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0 2rem;
+  gap: 20px;
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  min-height: auto;
+  transition: none;
+}
+
+.metric-card:first-child {
+  padding-left: 0;
+}
+
+.metric-card:last-child {
+  border-right: none !important;
+  padding-right: 0;
+}
+
+.metric-card:hover {
+  background: transparent !important;
+  transform: none !important;
+}
+
+[data-theme="dark"] .metric-card {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid var(--border-hairline) !important;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .metric-card:last-child {
+  border-right: none !important;
+}
+
+[data-theme="dark"] .metric-card:hover {
+  background: transparent !important;
+  transform: none !important;
+}
+
+/* Ícone com Círculo Delicado estilo Figma (width: 42px, height: 42px, 2px solid #000000) */
+.card-icon-circle,
+.card-circle-icon {
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  min-height: 42px;
+  border: 2px solid #000000;
+  border-radius: 50%;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #000000;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.card-icon-circle .material-symbols-rounded,
+.card-circle-icon .material-symbols-rounded {
+  font-size: 22px;
+  color: #000000;
+  line-height: 1;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+[data-theme="dark"] .card-icon-circle,
+[data-theme="dark"] .card-circle-icon {
+  border-color: #FFFFFF;
+  color: #FFFFFF;
+}
+
+[data-theme="dark"] .card-icon-circle .material-symbols-rounded,
+[data-theme="dark"] .card-circle-icon .material-symbols-rounded {
+  color: #FFFFFF;
+}
+
+/* Content Auto Layout: flex-direction: column; gap: 8px; */
+.card-content-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 0px;
+  gap: 8px;
+  width: 100%;
+}
+
+/* Título estilo "Clarity drives action" (Radio Canada Big, 500, 20px, line-height 100%, letter-spacing -0.02em, color #000000) */
+.card-figma-title,
+.card-serif-title {
+  font-family: 'Radio Canada Big', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 20px;
+  line-height: 100%;
+  letter-spacing: -0.02em;
+  color: #000000;
+  margin: 0;
+}
+
+[data-theme="dark"] .card-figma-title,
+[data-theme="dark"] .card-serif-title {
+  color: #FFFFFF;
+}
+
+/* Valor da Métrica (Integrado com tipografia editorial limpa) */
+.card-figma-value,
+.card-value-display {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin: 2px 0;
+}
+
+.card-figma-number,
+.card-number {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 34px;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: #000000;
+}
+
+.card-figma-unit,
+.card-unit-label {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-style: normal;
+  font-weight: 500;
+  font-size: 18px;
+  line-height: 1;
+  color: #555555;
+}
+
+[data-theme="dark"] .card-figma-number,
+[data-theme="dark"] .card-number {
+  color: #FFFFFF;
+}
+
+[data-theme="dark"] .card-figma-unit,
+[data-theme="dark"] .card-unit-label {
+  color: #9CA3AF;
+}
+
+/* Descrição estilo "We believe better decisions start with better data—measured, visible, and trusted." */
+/* (Source Serif Pro, 400, 20px, line-height 120%, letter-spacing -0.04em, color #000000) */
+.card-figma-desc,
+.card-editorial-desc {
+  font-family: 'Source Serif Pro', 'Source Serif 4', Georgia, serif;
+  font-style: normal;
+  font-weight: 400;
+  font-size: 20px;
+  line-height: 120%;
+  letter-spacing: -0.04em;
+  color: #000000;
+  margin: 0;
+  border: none !important;
+  padding-top: 0;
+}
+
+[data-theme="dark"] .card-figma-desc,
+[data-theme="dark"] .card-editorial-desc {
+  color: #E2E8F0;
+}
+
+/* ------------------------------------------------------------------------------
+   5. PAINEL DE ESTATÍSTICAS DA SESSÃO (DIRETO NO LAYOUT DA PÁGINA)
+   ------------------------------------------------------------------------------ */
+.stats-panel {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-bottom: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 3rem 0;
+  box-shadow: none !important;
+  margin-bottom: 3.5rem;
+  width: 100%;
+}
+
+.stats-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.75rem;
+  border-bottom: 1px solid var(--border-hairline-subtle);
+  padding-bottom: 0.85rem;
+}
+
+[data-theme="dark"] .stats-header {
+  border-bottom-color: var(--border-hairline-subtle);
+}
+
+.stats-title-group {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.icon-accent {
+  color: var(--accent-forest);
+}
+
+.stats-header h3 {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.sample-count {
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  background: transparent;
+  border: 1px solid var(--border-hairline);
+  color: var(--text-secondary);
+  padding: 0.35rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-weight: 600;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 0 1.75rem;
+  box-shadow: none !important;
+}
+
+.stat-card:first-child {
+  padding-left: 0;
+}
+
+.stat-card:last-child {
+  border-right: none !important;
+  padding-right: 0;
+}
+
+[data-theme="dark"] .stat-card {
+  background: transparent !important;
+}
+
+.stat-label {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 0.35rem;
+}
+
+.stat-value {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------------------------------------------
+   6. SEÇÃO DE GRÁFICOS E GEOLOCALIZAÇÃO (DIRETO NO LAYOUT DA PÁGINA)
+   ------------------------------------------------------------------------------ */
+.panels-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 3rem;
+  margin-bottom: 3.5rem;
+  width: 100%;
+}
+
+@media (max-width: 1024px) {
+  .panels-grid {
+    grid-template-columns: 1fr;
+    gap: 2rem;
+  }
+}
+
+.panel-card {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 2.5rem 0;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 768px) {
+  .panel-card {
+    padding: 1.75rem 0;
+  }
+}
+
+.panel-card-header {
+  margin-bottom: 1.25rem;
+}
+
+.panel-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--accent-forest);
+  background: rgba(0, 0, 0, 0.04);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  margin-bottom: 0.5rem;
+}
+
+[data-theme="dark"] .panel-tag {
+  background: rgba(255, 255, 255, 0.08);
+  color: #86EFAC;
+}
+
+.panel-card-header h2 {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.panel-card-header p {
+  font-family: 'Source Serif Pro', 'Source Serif 4', Georgia, serif;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.map-header-flex {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.chart-container {
+  position: relative;
+  flex-grow: 1;
+  min-height: 310px;
+  width: 100%;
+}
+
+/* Barra de Busca de Localização (CEP ou Endereço) */
+.map-search-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.85rem;
+  width: 100%;
+}
+
+.map-search-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border-hairline) !important;
+  border-radius: var(--radius-button);
+  padding: 0 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.map-search-input-wrap:focus-within {
+  border-color: var(--text-primary) !important;
+}
+
+.map-search-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-family: var(--font-sans);
+  font-size: 0.82rem;
+  padding: 0.55rem 0.5rem;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.map-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.search-icon {
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.btn-clear-search {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.btn-clear-search:hover {
+  color: var(--text-primary);
+}
+
+.btn-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.55rem 1rem !important;
+  font-size: 0.8rem !important;
+  background: var(--text-primary) !important;
+  color: var(--text-inverse) !important;
+  border-radius: var(--radius-button);
+  border: none;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-search:hover {
+  opacity: 0.88;
+}
+
+.btn-search:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.loc-hint {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  margin-top: 0.35rem;
+}
+
+/* Mapa Interativo */
+.map-container {
+  position: relative;
+  flex-grow: 1;
+  min-height: 310px;
+  border-radius: var(--radius-inner);
+  overflow: hidden;
+  border: none !important;
+  box-shadow: none !important;
+  margin-bottom: 0.85rem;
+}
+
+#map {
+  width: 100%;
+  height: 100%;
+  min-height: 310px;
+}
+
+/* Botão Localizar Minha Rua */
+.btn-location {
+  background: var(--accent-forest);
+  color: #FFFFFF;
+  border: none;
+  padding: 0.45rem 0.95rem;
+  border-radius: var(--radius-button);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.btn-location:hover {
+  background: var(--accent-forest-hover);
+  transform: translateY(-1px);
+}
+
+.btn-location:active {
+  transform: scale(0.97);
+}
+
+.btn-location.locating {
+  background: #d97706;
+}
+
+.btn-location.synced {
+  background: var(--status-online);
+}
+
+/* Barra de Informações de Coordenadas */
+.location-bar {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 0.85rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  font-size: 0.78rem;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .location-bar {
+  background: transparent !important;
+}
+
+.loc-item {
+  color: var(--text-secondary);
+}
+
+.loc-item strong {
+  color: var(--text-primary);
+  margin-left: 4px;
+}
+
+.loc-coords {
+  display: flex;
+  gap: 0.85rem;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.loc-coords strong {
+  color: var(--text-primary);
+}
+
+/* ------------------------------------------------------------------------------
+   7. PAINEL DE HISTÓRICO COMPLETO (DIRETO NO LAYOUT DA PÁGINA)
+   ------------------------------------------------------------------------------ */
+.history-panel {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 3rem 0;
+  box-shadow: none !important;
+  margin-bottom: 3.5rem;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .history-panel {
+    padding: 2rem 0;
+  }
+}
+
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-hairline-subtle);
+  padding-bottom: 0.85rem;
+}
+
+[data-theme="dark"] .history-header {
+  border-bottom-color: var(--border-hairline-subtle);
+}
+
+.history-header h2 {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.history-header p {
+  font-family: 'Source Serif Pro', 'Source Serif 4', Georgia, serif;
+  font-size: 0.95rem;
+  color: var(--text-muted);
+}
+
+.history-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+}
+
+.history-badge {
+  font-size: 0.74rem;
+  font-family: var(--font-mono);
+  background: transparent;
+  border: 1px solid var(--border-hairline) !important;
+  color: var(--text-secondary);
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-inner);
+}
+
+[data-theme="dark"] .history-badge {
+  background: transparent;
+}
+
+.btn-action {
+  background: var(--accent-forest);
+  color: #FFFFFF;
+  border: none;
+  padding: 0.45rem 0.95rem;
+  border-radius: var(--radius-button);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.btn-action:hover {
+  background: var(--accent-forest-hover);
+  transform: translateY(-1px);
+}
+
+.btn-action:active {
+  transform: scale(0.97);
+}
+
+.btn-action.btn-secondary {
+  background: #FFFFFF;
+  border: none !important;
+  color: var(--text-secondary);
+}
+
+[data-theme="dark"] .btn-action.btn-secondary {
+  background: #1C231E;
+}
+
+.btn-action.btn-secondary:hover {
+  background: var(--bg-subtle-hover);
+  color: var(--text-primary);
+}
+
+/* Tabela Estilo Editorial Minimalista */
+.table-container {
+  overflow-x: auto;
+  width: 100%;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+.history-table thead th {
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  letter-spacing: -0.01em;
+}
+
+.history-table tbody td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+}
+
+.history-table tbody tr:hover {
+  background: var(--bg-subtle);
+}
+
+.status-tag {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.18rem 0.5rem;
+  border-radius: var(--radius-inner);
+}
+
+.status-tag.ok {
+  background: rgba(43, 102, 48, 0.12);
+  color: var(--status-online);
+}
+
+.status-tag.warn {
+  background: rgba(217, 119, 6, 0.12);
+  color: #d97706;
+}
+
+.empty-row td {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 2.2rem 1rem;
+  font-family: var(--font-sans);
+  font-style: italic;
+}
+
+/* ------------------------------------------------------------------------------
+   8. ESPECIFICAÇÕES TÉCNICAS (DIRETO NO LAYOUT DA PÁGINA)
+   ------------------------------------------------------------------------------ */
+.info-panel {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 3rem 0;
+  box-shadow: none !important;
+  margin-bottom: 3.5rem;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .info-panel {
+    padding: 2rem 0;
+  }
+}
+
+.info-header {
+  margin-bottom: 1.5rem;
+}
+
+.info-header h3 {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+  margin-top: 0.2rem;
+}
+
+.diagnostics-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--border-hairline);
+  border-bottom: 1px solid var(--border-hairline);
+  padding: 1.5rem 0;
+  width: 100%;
+}
+
+@media (max-width: 1200px) {
+  .diagnostics-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .diag-item {
+    border-bottom: 1px solid var(--border-hairline) !important;
+    padding: 1rem 0 !important;
+  }
+  .diag-item:nth-child(3n) {
+    border-right: none !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .diagnostics-grid {
+    grid-template-columns: 1fr;
+  }
+  .diag-item {
+    border-right: none !important;
+  }
+}
+
+.diag-item {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 0 1.25rem;
+  box-shadow: none !important;
+}
+
+.diag-item:first-child {
+  padding-left: 0;
+}
+
+.diag-item:last-child {
+  border-right: none !important;
+  padding-right: 0;
+}
+
+[data-theme="dark"] .diag-item {
+  background: transparent !important;
+}
+
+.diag-label {
+  display: block;
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 0.3rem;
+}
+
+.diag-value {
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.diag-value.highlight-green {
+  color: var(--status-online);
+}
+
+/* ------------------------------------------------------------------------------
+   9. RODAPÉ EDITORIAL
+   ------------------------------------------------------------------------------ */
+.main-footer {
+  border-top: 1px solid var(--border-subtle);
+  padding: 1.75rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  width: 100%;
+}
+
+.footer-brand {
+  display: flex;
+  flex-direction: column;
+}
+
+.footer-brand strong {
+  font-family: var(--font-sans);
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.footer-brand span {
+  font-size: 0.74rem;
+  margin-top: 2px;
+}
+
+/* ------------------------------------------------------------------------------
+   10. SISTEMA DE NAVEGAÇÃO POR ABAS (TABS NAVIGATION DIRETO NA PÁGINA)
+   ------------------------------------------------------------------------------ */
+.tabs-nav {
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 0 0 0.85rem 0;
+  margin-bottom: 2.5rem;
+  box-shadow: none !important;
+  width: 100%;
+}
+
+.tab-btn {
+  flex: none;
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 2px solid transparent !important;
+  border-radius: 0 !important;
+  color: var(--text-muted);
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 500;
+  padding: 0.5rem 0.25rem;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  transition: all 0.2s ease;
+  position: relative;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: transparent !important;
+}
+
+.tab-btn.active {
+  color: var(--text-primary);
+  background: transparent !important;
+  border-bottom-color: var(--text-primary) !important;
+  box-shadow: none !important;
+  font-weight: 600;
+}
+
+[data-theme="dark"] .tab-btn.active {
+  color: #FFFFFF;
+  border-bottom-color: #FFFFFF !important;
+}
+
+.tab-pill-live {
+  background: rgba(43, 102, 48, 0.12);
+  color: var(--status-online);
+  border: 1px solid rgba(43, 102, 48, 0.25);
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: inline-flex;
+  align-items: center;
+}
+
+[data-theme="dark"] .tab-pill-live {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34D399;
+  border-color: rgba(52, 211, 153, 0.3);
+}
+
+/* Visibilidade das Abas */
+.tab-view {
+  display: block;
+  animation: fadeIn 0.4s ease both;
+}
+
+.tab-view.hidden {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------------------
+   11. BARRA DE METADADOS DE SÃO PAULO OFICIAL (DIRETO NO LAYOUT DA PÁGINA)
+   ------------------------------------------------------------------------------ */
+.sp-meta-bar {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 1rem 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 2.5rem;
+  box-shadow: none !important;
+}
+
+.sp-meta-left {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.88rem;
+  color: var(--text-primary);
+}
+
+.sp-meta-icon {
+  color: var(--accent-forest);
+}
+
+.sp-meta-station {
+  color: var(--text-muted);
+  margin-left: 0.25rem;
+}
+
+.sp-meta-right {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  flex-wrap: wrap;
+}
+
+.sp-sync-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: transparent;
+  border: 1px solid var(--border-hairline) !important;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+}
+
+[data-theme="dark"] .sp-sync-time {
+  background: transparent;
+}
+
+.btn-sm {
+  padding: 0.45rem 1rem !important;
+  font-size: 0.78rem !important;
+}
+
+/* Seletor Segmentado de Localização: SP Capital vs. Minha Região (GPS) */
+.comp-toggle-group {
+  display: inline-flex;
+  align-items: center;
+  background: transparent;
+  border: 1px solid var(--border-hairline) !important;
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 3px;
+}
+
+.btn-comp-mode {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  white-space: nowrap;
+}
+
+.btn-comp-mode:hover {
+  color: var(--text-primary);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+[data-theme="dark"] .btn-comp-mode:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.btn-comp-mode.active {
+  background: var(--text-primary) !important;
+  color: var(--text-inverse) !important;
+  font-weight: 600;
+}
+
+.spin-icon {
+  display: inline-block;
+  animation: spinGpsAnim 1s linear infinite;
+}
+
+@keyframes spinGpsAnim {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ------------------------------------------------------------------------------
+   12. GRID COMPARATIVO LADO A LADO (DIRETO NO LAYOUT DA PÁGINA • SEM CARDS)
+   Divisão apenas com linhas minimalistas sutis entre as grandezas
+   ------------------------------------------------------------------------------ */
+.compare-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0;
+  border-top: 1px solid var(--border-hairline);
+  border-bottom: 1px solid var(--border-hairline);
+  padding: 3rem 0;
+  margin-bottom: 3.5rem;
+  background: transparent;
+  width: 100%;
+}
+
+.compare-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 24px;
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  padding: 0 3rem;
+  transition: none;
+}
+
+.compare-card:nth-child(odd) {
+  padding-left: 0;
+}
+
+.compare-card:nth-child(even) {
+  border-right: none !important;
+  padding-right: 0;
+}
+
+.compare-card:nth-child(1),
+.compare-card:nth-child(2) {
+  border-bottom: 1px solid var(--border-hairline) !important;
+  padding-bottom: 3rem;
+  margin-bottom: 3rem;
+}
+
+.compare-card:hover {
+  background: transparent !important;
+  transform: none !important;
+}
+
+[data-theme="dark"] .compare-card {
+  background: transparent !important;
+}
+
+.compare-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.5rem;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.compare-title-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.compare-card-title {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 100%;
+  letter-spacing: -0.02em;
+  margin: 0;
+}
+
+.compare-card-sub {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 4px;
+}
+
+/* Badge de Delta / Variação Central */
+.delta-badge {
+  background: transparent;
+  border: 1px solid var(--border-hairline) !important;
+  padding: 0.5rem 0.95rem;
+  border-radius: var(--radius-inner);
+  text-align: right;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  min-width: 110px;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .delta-badge {
+  background: transparent;
+}
+
+.delta-label {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+.delta-badge strong {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.delta-badge.delta-hot strong {
+  color: var(--color-temp);
+}
+
+.delta-badge.delta-cold strong {
+  color: var(--color-humid);
+}
+
+.delta-badge.delta-equal strong {
+  color: var(--accent-forest);
+}
+
+[data-theme="dark"] .delta-badge.delta-equal strong {
+  color: #86EFAC;
+}
+
+/* Divisão Lado a Lado (Local vs Oficial) */
+.compare-split {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 1.25rem;
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-bottom: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 1.5rem 0;
+  margin-bottom: 0.5rem;
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .compare-split {
+  background: transparent !important;
+}
+
+.compare-side {
+  display: flex;
+  flex-direction: column;
+}
+
+.side-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 0.45rem;
+}
+
+.side-badge.sp-badge {
+  color: var(--accent-forest);
+}
+
+[data-theme="dark"] .side-badge.sp-badge {
+  color: #86EFAC;
+}
+
+.side-value-group {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.side-value {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 2.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.side-unit {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 1rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.side-sensor-hint {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 0.45rem;
+}
+
+.compare-divider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--border-hairline) !important;
+  color: var(--text-muted);
+}
+
+/* Elementos Especiais de São Paulo (Mín/Máx, Sensação, Poluentes) */
+.sp-extremes-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sp-extreme-pill {
+  font-size: 0.72rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 500;
+  border: none !important;
+}
+
+.sp-extreme-pill.min {
+  background: rgba(38, 100, 123, 0.08);
+  color: var(--color-humid);
+}
+
+.sp-extreme-pill.max {
+  background: rgba(195, 68, 50, 0.08);
+  color: var(--color-temp);
+}
+
+[data-theme="dark"] .sp-extreme-pill.min {
+  background: rgba(56, 189, 248, 0.12);
+  color: #38BDF8;
+}
+
+[data-theme="dark"] .sp-extreme-pill.max {
+  background: rgba(251, 113, 133, 0.12);
+  color: #FB7185;
+}
+
+.sp-apparent-row {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 0.45rem;
+}
+
+.sp-apparent-row strong {
+  color: var(--text-primary);
+}
+
+.sp-pollutants-grid {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.sp-pollutant-item {
+  font-size: 0.72rem;
+  background: transparent;
+  border: 1px solid var(--border-hairline) !important;
+  padding: 0.25rem 0.55rem;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+}
+
+.sp-pollutant-item strong {
+  color: var(--text-primary);
+  margin-left: 2px;
+}
+
+/* Box de Diagnóstico / Análise Microclimática com Tipografia Source Serif Pro */
+.compare-analysis {
+  background: transparent !important;
+  border: none !important;
+  border-left: 2px solid var(--accent-forest) !important;
+  padding: 0.75rem 1rem;
+  border-radius: 0 !important;
+  font-family: 'Source Serif Pro', 'Source Serif 4', Georgia, serif;
+  font-size: 1.05rem;
+  line-height: 1.4;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+  box-shadow: none !important;
+}
+
+[data-theme="dark"] .compare-analysis {
+  background: transparent !important;
+  border-left-color: #86EFAC !important;
+  color: #E2E8F0;
+}
+
+/* ------------------------------------------------------------------------------
+   13. PAINEL DE PANORAMA CLIMÁTICO DE SÃO PAULO (DIRETO NO LAYOUT DA PÁGINA)
+   ------------------------------------------------------------------------------ */
+.sp-overview-panel {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 3rem 0;
+  box-shadow: none !important;
+  margin-bottom: 3.5rem;
+  width: 100%;
+}
+
+.sp-overview-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+.sp-cond-card {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 0 1.5rem;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  box-shadow: none !important;
+}
+
+.sp-cond-card:first-child {
+  padding-left: 0;
+}
+
+.sp-cond-card:last-child {
+  border-right: none !important;
+  padding-right: 0;
+}
+
+[data-theme="dark"] .sp-cond-card {
+  background: transparent !important;
+}
+
+.sp-cond-icon-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1.5px solid var(--text-primary) !important;
+  color: var(--accent-forest);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.sp-cond-icon-box.icon-rain {
+  color: var(--color-humid);
+}
+
+.sp-cond-icon-box.icon-thermo {
+  color: var(--color-temp);
+}
+
+.sp-cond-icon-box.icon-altitude {
+  color: var(--color-press);
+}
+
+[data-theme="dark"] .sp-cond-icon-box {
+  border-color: #FFFFFF !important;
+  color: #86EFAC;
+}
+[data-theme="dark"] .sp-cond-icon-box.icon-rain { color: #38BDF8; }
+[data-theme="dark"] .sp-cond-icon-box.icon-thermo { color: #FB7185; }
+[data-theme="dark"] .sp-cond-icon-box.icon-altitude { color: #34D399; }
+
+.sp-cond-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-cond-label {
+  font-size: 0.74rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.sp-cond-val {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-top: 2px;
+}
+
+.sp-cond-sub {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* ------------------------------------------------------------------------------
+   14. PAINEL DE FUNDAMENTAÇÃO CIENTÍFICA (DIRETO NO LAYOUT DA PÁGINA)
+   ------------------------------------------------------------------------------ */
+.science-explanation-panel {
+  background: transparent !important;
+  border: none !important;
+  border-top: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 3rem 0;
+  box-shadow: none !important;
+  margin-bottom: 3.5rem;
+  width: 100%;
+}
+
+.science-title {
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0.5rem 0 0.65rem 0;
+  letter-spacing: -0.02em;
+}
+
+.science-intro {
+  font-family: 'Source Serif Pro', 'Source Serif 4', Georgia, serif;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin-bottom: 1.75rem;
+  max-width: 900px;
+}
+
+.science-reasons-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0;
+}
+
+@media (max-width: 1100px) {
+  .science-reasons-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.science-reason-card {
+  background: transparent !important;
+  border: none !important;
+  border-right: 1px solid var(--border-hairline) !important;
+  border-radius: 0 !important;
+  padding: 0 2rem;
+  box-shadow: none !important;
+}
+
+.science-reason-card:first-child {
+  padding-left: 0;
+}
+
+.science-reason-card:last-child {
+  border-right: none !important;
+  padding-right: 0;
+}
+
+[data-theme="dark"] .science-reason-card {
+  background: transparent !important;
+}
+
+.reason-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+  color: var(--text-primary);
+  font-family: 'Radio Canada Big', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.reason-icon {
+  color: var(--accent-forest);
+  font-size: 20px;
+}
+
+[data-theme="dark"] .reason-icon {
+  color: #86EFAC;
+}
+
+.science-reason-card p {
+  font-family: 'Source Serif Pro', 'Source Serif 4', Georgia, serif;
+  font-size: 0.92rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.reason-header {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.55rem;
+  color: var(--text-primary);
+  font-size: 0.88rem;
+}
+
+.reason-icon {
+  color: var(--accent-forest);
+  font-size: 18px;
+}
+
+[data-theme="dark"] .reason-icon {
+  color: #86EFAC;
+}
+
+.science-reason-card p {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+/* ------------------------------------------------------------------------------
+   15. RESPONSIVIDADE MOBILE REFINADA (LAYOUT & TOUCH)
+   ------------------------------------------------------------------------------ */
+@media (max-width: 768px) {
+  body {
+    padding: 0.75rem 0.65rem;
+  }
+
+  .main-header {
+    padding: 0.85rem 0.95rem;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .brand {
+    justify-content: flex-start;
+  }
+
+  .brand-title {
+    font-size: 1.15rem;
+  }
+
+  /* Grid 2x2 Simétrico dos Controles Superiores no Celular */
+  .header-right {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+    width: 100%;
+  }
+
+  .btn-theme-toggle,
+  .btn-demo,
+  .clock-badge,
+  .status-badge {
+    width: 100%;
+    min-height: 42px;
+    padding: 0.45rem 0.5rem;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.76rem;
+    box-sizing: border-box;
+  }
+
+  .hero-section {
+    padding: 0.35rem 0 1.25rem 0;
+  }
+
+  .hero-title {
+    font-size: 1.85rem;
+    line-height: 1.15;
+  }
+
+  .hero-description {
+    font-size: 0.86rem;
+    line-height: 1.5;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 1.5rem 0;
+    margin-bottom: 2rem;
+  }
+
+  .metric-card {
+    min-height: auto;
+    padding: 2rem 0 !important;
+    gap: 16px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-hairline) !important;
+  }
+
+  .metric-card:first-child {
+    padding-top: 0 !important;
+  }
+
+  .metric-card:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .card-figma-title,
+  .card-serif-title {
+    font-size: 18px;
+  }
+
+  .card-figma-number,
+  .card-number {
+    font-size: 28px;
+  }
+
+  .card-figma-desc,
+  .card-editorial-desc {
+    font-size: 17px;
+    line-height: 130%;
+  }
+
+  .compare-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 1.5rem 0;
+    margin-bottom: 2rem;
+  }
+
+  .compare-card {
+    padding: 2rem 0 !important;
+    gap: 16px;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-hairline) !important;
+    margin-bottom: 0 !important;
+  }
+
+  .compare-card:first-child {
+    padding-top: 0 !important;
+  }
+
+  .compare-card:last-child {
+    border-bottom: none !important;
+    padding-bottom: 0 !important;
+  }
+
+  .stats-panel,
+  .panel-card,
+  .history-panel,
+  .info-panel,
+  .sp-overview-panel,
+  .science-explanation-panel {
+    padding: 2rem 0;
+    margin-bottom: 2rem;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .stat-card {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-hairline) !important;
+    padding: 1rem 0 !important;
+  }
+
+  .stat-card:last-child {
+    border-bottom: none !important;
+  }
+
+  .map-header-flex {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .btn-location {
+    width: 100%;
+    min-height: 42px;
+    justify-content: center;
+    font-size: 0.82rem;
+  }
+
+  .chart-container,
+  .map-container,
+  #map {
+    height: 280px;
+    min-height: 280px;
+  }
+
+  .location-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
+
+  .history-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+  }
+
+  .history-actions {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .history-badge {
+    width: 100%;
+    text-align: center;
+    padding: 0.35rem;
+  }
+
+  .history-actions .btn-action {
+    flex: 1 1 calc(50% - 0.25rem);
+    min-height: 42px;
+    justify-content: center;
+    font-size: 0.8rem;
+  }
+
+  .table-container {
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .diagnostics-grid {
+    grid-template-columns: 1fr;
+    gap: 0.5rem;
+  }
+
+  /* Responsividade do Módulo Comparativo São Paulo (Sem Cards) */
+  .tabs-nav {
+    gap: 1.25rem;
+    padding: 0 0 0.5rem 0;
+    overflow-x: auto;
+  }
+
+  .tab-btn {
+    padding: 0.5rem 0.25rem;
+    font-size: 0.85rem;
+    min-height: 40px;
+  }
+
+  .tab-pill-live {
+    display: none;
+  }
+
+  .sp-meta-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.85rem;
+    padding: 1rem 0;
+  }
+
+  .comp-toggle-group {
+    width: 100%;
+    display: flex;
+  }
+
+  .btn-comp-mode {
+    flex: 1;
+    justify-content: center;
+    padding: 0.5rem 0.5rem;
+  }
+
+  .sp-meta-right {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.75rem;
+    width: 100%;
+  }
+
+  .compare-split {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    text-align: center;
+  }
+
+  .compare-side {
+    align-items: center;
+  }
+
+  .side-value-group {
+    justify-content: center;
+  }
+
+  .compare-divider {
+    margin: 0 auto;
+    transform: rotate(90deg);
+  }
+
+  .sp-extremes-row,
+  .sp-pollutants-grid {
+    justify-content: center;
+  }
+
+  .sp-overview-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .sp-cond-card {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-hairline) !important;
+    padding: 1.25rem 0 !important;
+  }
+
+  .sp-cond-card:last-child {
+    border-bottom: none !important;
+  }
+
+  .science-reasons-grid {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .science-reason-card {
+    border-right: none !important;
+    border-bottom: 1px solid var(--border-hairline) !important;
+    padding: 1.25rem 0 !important;
+  }
+
+  .science-reason-card:last-child {
+    border-bottom: none !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .tab-btn {
+    font-size: 0.78rem;
+    padding: 0.5rem 0.15rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .header-right {
+    grid-template-columns: 1fr;
+  }
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .history-actions .btn-action {
+    flex: 1 1 100%;
+  }
+}

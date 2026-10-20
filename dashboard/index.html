@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estação Meteorológica Inteligente — ESP32 Telemetria</title>
+  
+  <!-- Preconnect para fontes do Google -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+  <!-- Tipografia Editorial do Figma: Radio Canada Big + Source Serif Pro / Source Serif 4 + Plus Jakarta Sans + Space Grotesk -->
+  <link href="https://fonts.googleapis.com/css2?family=Radio+Canada+Big:ital,wght@0,400..700;1,400..700&family=Source+Serif+Pro:ital,wght@0,400;0,600;0,700;1,400&family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&family=Newsreader:ital,opsz,wght@0,6..72,400..600;1,6..72,400..500&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  
+  <!-- Pacote Oficial de Ícones do Google: Material Symbols Rounded -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
+
+  <!-- Folha de Estilos Principal -->
+  <link rel="stylesheet" href="style.css?v=3.0">
+  
+  <!-- Leaflet CSS (Mapa Interativo) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <!-- Chart.js (Gráficos em Tempo Real) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  
+  <!-- Leaflet JS (Mapa Interativo) -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+</head>
+<body>
+  <div class="dashboard-wrapper">
+    
+    <!-- Topbar Navigation -->
+    <header class="main-header">
+      <div class="brand">
+        <div class="brand-symbol">
+          <span class="material-symbols-rounded">cloud_done</span>
+        </div>
+        <div class="brand-text">
+          <span class="brand-title">Atmosfera<span class="brand-dot">.</span></span>
+          <span class="brand-subtitle">ESP32 IoT Telemetry • 68F3</span>
+        </div>
+      </div>
+
+      <div class="header-right">
+        <!-- Botão Alternador Modo Claro / Escuro -->
+        <button id="btnThemeToggle" class="btn-theme-toggle" title="Alternar entre modo claro e escuro">
+          <span class="material-symbols-rounded icon-sm" id="themeIcon">dark_mode</span>
+          <span id="themeText">Modo Escuro</span>
+        </button>
+
+        <button id="btnDemo" class="btn-demo" title="Alternar entre telemetria física do ESP32 e dados simulados">
+          <span class="material-symbols-rounded icon-sm">tune</span>
+          Modo Demo: <span id="demoState">OFF</span>
+        </button>
+        <div class="clock-badge">
+          <span class="material-symbols-rounded icon-sm">schedule</span>
+          <span id="clock">--:--:--</span>
+        </div>
+        <div class="status-badge" id="statusBadge">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Conectando...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Barra de Navegação de Abas do Sistema -->
+    <nav class="tabs-nav" aria-label="Navegação entre módulos">
+      <button class="tab-btn active" id="tabBtnTelemetry" data-target="viewTelemetry">
+        <span class="material-symbols-rounded icon-sm">sensors</span>
+        <span>Telemetria Local (ESP32)</span>
+      </button>
+      <button class="tab-btn" id="tabBtnComparison" data-target="viewComparison">
+        <span class="material-symbols-rounded icon-sm">compare_arrows</span>
+        <span>Comparativo São Paulo (Oficial)</span>
+        <span class="tab-pill-live">Tempo Real</span>
+      </button>
+    </nav>
+
+    <!-- ABA 1: TELEMETRIA EM TEMPO REAL DA ESTAÇÃO LOCAL (ESP32) -->
+    <div id="viewTelemetry" class="tab-view active">
+
+    <!-- Seção Hero Editorial (Inspirada no Figma Modern Product Launch) -->
+    <section class="hero-section">
+      <div class="hero-badge">
+        <span class="material-symbols-rounded icon-xs">sensors</span>
+        Telemetria em Tempo Real • Hardware ESP32
+      </div>
+      <h1 class="hero-title">Precisão em cada leitura<span class="hero-dot">.</span></h1>
+      <p class="hero-description">
+        Monitoramento contínuo de microclima e qualidade ambiental capturados pelos sensores BMP280, DHT22, MQ-135 e LDR com persistência e análise em tempo real.
+      </p>
+    </section>
+
+    <!-- Banner de Alerta Dinâmico (RF04) -->
+    <div id="alertBanner" class="alert-banner hidden">
+      <div class="alert-icon-wrapper">
+        <span class="material-symbols-rounded">warning</span>
+      </div>
+      <div class="alert-content">
+        <strong id="alertTitle">Condição Ambiental Fora do Padrão</strong>
+        <p id="alertDesc">Valores que exigem atenção foram detectados na estação.</p>
+      </div>
+      <button class="alert-close" id="btnDismissAlert" title="Fechar alerta">&times;</button>
+    </div>
+
+    <!-- Grid de Métricas Principais (5 Sensores Físicos com Design Exato do Figma) -->
+    <main class="metrics-grid">
+      
+      <!-- Card 1: Temperatura -->
+      <article class="metric-card">
+        <div class="card-icon-circle">
+          <span class="material-symbols-rounded">device_thermostat</span>
+        </div>
+        <div class="card-content-wrap">
+          <h3 class="card-figma-title">Temperatura do Ar</h3>
+          <div class="card-figma-value">
+            <span class="card-figma-number" id="valTemp">--</span>
+            <span class="card-figma-unit">°C</span>
+          </div>
+          <p class="card-figma-desc" id="stTemp">
+            Condição térmica monitorada em tempo real com calibração contínua dos sensores DHT22 e BMP280.
+          </p>
+        </div>
+      </article>
+
+      <!-- Card 2: Pressão Atmosférica -->
+      <article class="metric-card">
+        <div class="card-icon-circle">
+          <span class="material-symbols-rounded">speed</span>
+        </div>
+        <div class="card-content-wrap">
+          <h3 class="card-figma-title">Pressão Barométrica</h3>
+          <div class="card-figma-value">
+            <span class="card-figma-number" id="valPress">--</span>
+            <span class="card-figma-unit">hPa</span>
+          </div>
+          <p class="card-figma-desc" id="stPress">
+            Pressão atmosférica de superfície aferida com alta precisão barométrica para a altitude local.
+          </p>
+        </div>
+      </article>
+
+      <!-- Card 3: Umidade Relativa -->
+      <article class="metric-card">
+        <div class="card-icon-circle">
+          <span class="material-symbols-rounded">humidity_percentage</span>
+        </div>
+        <div class="card-content-wrap">
+          <h3 class="card-figma-title">Umidade Relativa</h3>
+          <div class="card-figma-value">
+            <span class="card-figma-number" id="valUmid">--</span>
+            <span class="card-figma-unit">%</span>
+          </div>
+          <p class="card-figma-desc" id="stUmid">
+            Taxa de saturação de vapor no ar para diagnóstico de conforto higrométrico e respiratório.
+          </p>
+        </div>
+      </article>
+
+      <!-- Card 4: Qualidade do Ar -->
+      <article class="metric-card">
+        <div class="card-icon-circle">
+          <span class="material-symbols-rounded">nest_eco_leaf</span>
+        </div>
+        <div class="card-content-wrap">
+          <h3 class="card-figma-title">Pureza do Ar & Gases</h3>
+          <div class="card-figma-value">
+            <span class="card-figma-number" id="valAir">--</span>
+            <span class="card-figma-unit">PPM estimado</span>
+          </div>
+          <p class="card-figma-desc" id="stAir">
+            Concentração de compostos voláteis, CO₂ e gases redutores captados na entrada analógica.
+          </p>
+        </div>
+      </article>
+
+      <!-- Card 5: Luminosidade -->
+      <article class="metric-card">
+        <div class="card-icon-circle">
+          <span class="material-symbols-rounded">wb_sunny</span>
+        </div>
+        <div class="card-content-wrap">
+          <h3 class="card-figma-title">Intensidade Luminosa</h3>
+          <div class="card-figma-value">
+            <span class="card-figma-number" id="valLight">--</span>
+            <span class="card-figma-unit">Lux estimado</span>
+          </div>
+          <p class="card-figma-desc" id="stLight">
+            Incidência de radiação visível sobre o divisor resistivo para cálculo de iluminação ambiente.
+          </p>
+        </div>
+      </article>
+
+    </main>
+
+    <!-- Painel de Estatísticas e Análise da Sessão -->
+    <section class="stats-panel">
+      <div class="stats-header">
+        <div class="stats-title-group">
+          <span class="material-symbols-rounded icon-accent">monitoring</span>
+          <h3>Estatísticas da Sessão</h3>
+        </div>
+        <span class="sample-count" id="sampleCount">Amostras: 0</span>
+      </div>
+      <div class="stats-grid">
+        <div class="stat-card">
+          <span class="stat-label">Temp. Máxima / Mínima</span>
+          <strong class="stat-value" id="statTemp">--°C / --°C</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Umidade Média</span>
+          <strong class="stat-value" id="statUmid">--%</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Pico Qualidade do Ar</span>
+          <strong class="stat-value" id="statAir">-- PPM</strong>
+        </div>
+        <div class="stat-card">
+          <span class="stat-label">Pressão Média</span>
+          <strong class="stat-value" id="statPress">-- hPa</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- Seção de Gráficos e Geolocalização (Grid Dividido) -->
+    <section class="panels-grid">
+      
+      <!-- Painel Gráfico Temporal (Chart.js) -->
+      <div class="panel-card chart-panel">
+        <div class="panel-card-header">
+          <div>
+            <div class="panel-tag">
+              <span class="material-symbols-rounded icon-xs">show_chart</span>
+              Tendência Temporal
+            </div>
+            <h2>Evolução Contínua</h2>
+            <p>Temperatura, umidade relativa e concentração de gases</p>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="sensorChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Painel de Geolocalização (Leaflet.js) -->
+      <div class="panel-card map-panel">
+        <div class="panel-card-header map-header-flex">
+          <div>
+            <div class="panel-tag">
+              <span class="material-symbols-rounded icon-xs">near_me</span>
+              Geolocalização
+            </div>
+            <h2>Mapeamento da Estação</h2>
+            <p>Visualização das coordenadas e vias locais</p>
+          </div>
+          <span class="panel-tag">Coordenadas cadastradas da estação</span>
+        </div>
+
+        <div class="map-container">
+          <div id="map"></div>
+        </div>
+
+        <div class="location-bar">
+          <div class="loc-item">
+            <span class="loc-label">Endereço:</span>
+            <strong id="geoSource">Detectando GPS...</strong>
+            <small class="loc-hint">Dica: Você também pode arrastar o pino ou tocar diretamente no mapa em cima da sua casa.</small>
+          </div>
+          <div class="loc-coords">
+            <span>Lat: <strong id="geoLat">--</strong></span>
+            <span>Lng: <strong id="geoLng">--</strong></span>
+            <span>Precisão: <strong id="geoAccuracy">Aferindo...</strong></span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Painel de Histórico Completo de Leituras (Log Cronológico) -->
+    <section class="history-panel">
+      <div class="history-header">
+        <div>
+          <div class="panel-tag">
+            <span class="material-symbols-rounded icon-xs">table_chart</span>
+            Auditoria de Dados
+          </div>
+          <h2>Histórico Detalhado</h2>
+          <p>Registro cronológico e auditável das medições recebidas</p>
+        </div>
+        <div class="history-actions">
+          <span class="history-badge" id="historyCounter">0 registros</span>
+          <button id="btnExportCSV" class="btn-action" title="Exportar histórico atual para arquivo CSV">
+            <span class="material-symbols-rounded icon-sm">download</span>
+            Exportar CSV
+          </button>
+          <button id="btnClearHistory" class="btn-action btn-secondary" title="Limpar histórico da tela">
+            <span class="material-symbols-rounded icon-sm">delete_outline</span>
+            Limpar
+          </button>
+        </div>
+      </div>
+
+      <div class="table-container">
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Temperatura</th>
+              <th>Umidade</th>
+              <th>Pressão</th>
+              <th>Qualidade do Ar</th>
+              <th>Luminosidade</th>
+              <th>Diagnóstico</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody">
+            <tr class="empty-row">
+              <td colspan="7">Aguardando as primeiras leituras da estação...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Painel de Especificações Técnicas (Inspirado na seção Specs do Figma) -->
+    <section class="info-panel">
+      <div class="info-header">
+        <div class="panel-tag">
+          <span class="material-symbols-rounded icon-xs">memory</span>
+          Hardware Specs
+        </div>
+        <h3>Especificações do Sistema e Barramentos</h3>
+      </div>
+      <div class="diagnostics-grid">
+        <div class="diag-item">
+          <span class="diag-label">Sensor Barométrico</span>
+          <strong class="diag-value">GY-BMP280 (I²C: 0x76)</strong>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Barramento I²C</span>
+          <strong class="diag-value">SDA: GPIO 21 • SCL: GPIO 22</strong>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Sensor Higrométrico</span>
+          <strong class="diag-value">DHT22 (GPIO 4 • 1-Wire)</strong>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Entradas Analógicas ADC</span>
+          <strong class="diag-value">GPIO 34 (Luz) • GPIO 35 (Ar)</strong>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Última Sincronização</span>
+          <strong class="diag-value" id="lastSync">--:--:--</strong>
+        </div>
+        <div class="diag-item">
+          <span class="diag-label">Estado da Ingestão</span>
+          <strong class="diag-value highlight-green" id="apiStatus">Pronta</strong>
+        </div>
+      </div>
+    </section>
+    </div>
+    <!-- FIM DA ABA 1: TELEMETRIA LOCAL -->
+
+    <!-- ABA 2: COMPARATIVO EM TEMPO REAL COM SÃO PAULO OFICIAL (OPEN-METEO) -->
+    <div id="viewComparison" class="tab-view hidden">
+      
+      <!-- Seção Hero Editorial do Comparativo -->
+      <section class="hero-section hero-comparison">
+        <div class="hero-badge">
+          <span class="material-symbols-rounded icon-xs">apartment</span>
+          Microclima Local vs. Metrópole de São Paulo
+        </div>
+        <h1 class="hero-title">Comparação em tempo real<span class="hero-dot">.</span></h1>
+        <p class="hero-description">
+          Confronto analítico entre os sensores físicos da estação (DHT22, BMP280, MQ-135) e as medições oficiais consolidadas da rede meteorológica de São Paulo (WMO / Open-Meteo).
+        </p>
+      </section>
+
+      <!-- Barra de Metadados e Controle de Comparação -->
+      <div class="sp-meta-bar">
+        <div class="sp-meta-left">
+          <span class="material-symbols-rounded icon-sm sp-meta-icon" id="compMetaIcon">location_city</span>
+          <div>
+            <strong id="compMetaLabel">Referência de Comparação:</strong>
+            <span class="sp-meta-station" id="compMetaStation">São Paulo Capital (Mirante de Santana • 758m altitude • WMO 83781)</span>
+          </div>
+        </div>
+        <div class="sp-meta-right">
+          <!-- Seletor Segmentado: SP Capital vs. Minha Região (GPS) -->
+          <div class="comp-toggle-group">
+            <button id="btnCompSP" class="btn-comp-mode active" title="Comparar com a estação meteorológica central de São Paulo (Mirante de Santana)">
+              <span class="material-symbols-rounded icon-xs">location_city</span>
+              SP Capital
+            </button>
+            <button id="btnCompLocal" class="btn-comp-mode" title="Comparar com a medição oficial da sua localização exata / bairro via GPS">
+              <span class="material-symbols-rounded icon-xs">my_location</span>
+              Minha Região (GPS)
+            </button>
+          </div>
+
+          <div class="sp-sync-time">
+            <span class="material-symbols-rounded icon-xs">update</span>
+            <span><span id="syncLabelPrefix">Oficial SP</span>: <strong id="spLastUpdate">Sincronizando...</strong></span>
+          </div>
+          <button id="btnRefreshSP" class="btn-action btn-sm" title="Recarregar dados meteorológicos oficiais">
+            <span class="material-symbols-rounded icon-sm">refresh</span>
+            <span id="btnRefreshSPLabel">Atualizar SP</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Grid de Confronto Lado a Lado (4 Grandezas) -->
+      <div class="compare-grid">
+        
+        <!-- CARD 1: TEMPERATURA -->
+        <article class="compare-card">
+          <div class="compare-card-header">
+            <div class="compare-title-row">
+              <div class="card-icon-circle">
+                <span class="material-symbols-rounded">device_thermostat</span>
+              </div>
+              <div>
+                <h3 class="compare-card-title">Temperatura do Ar</h3>
+                <span class="compare-card-sub">Microclima Local vs. Macrorregião Paulistana</span>
+              </div>
+            </div>
+            <div class="delta-badge" id="deltaTempBadge">
+              <span class="delta-label">Diferença (Δ)</span>
+              <strong id="deltaTempVal">-- °C</strong>
+            </div>
+          </div>
+
+          <div class="compare-split">
+            <!-- Lado Local -->
+            <div class="compare-side local-side">
+              <div class="side-badge">
+                <span class="material-symbols-rounded icon-xs">memory</span>
+                Sua Estação ESP32
+              </div>
+              <div class="side-value-group">
+                <span class="side-value" id="compLocalTemp">--</span>
+                <span class="side-unit">°C</span>
+              </div>
+              <span class="side-sensor-hint">Sensor DHT22 / BMP280</span>
+            </div>
+
+            <div class="compare-divider">
+              <span class="material-symbols-rounded icon-sm">compare_arrows</span>
+            </div>
+
+            <!-- Lado Oficial SP / Região -->
+            <div class="compare-side official-side">
+              <div class="side-badge sp-badge">
+                <span class="material-symbols-rounded icon-xs">public</span>
+                <span class="comp-official-badge-text">São Paulo Oficial</span>
+              </div>
+              <div class="side-value-group">
+                <span class="side-value" id="compSpTemp">--</span>
+                <span class="side-unit">°C</span>
+              </div>
+              <div class="sp-extremes-row">
+                <span class="sp-extreme-pill min" title="Temperatura mínima registrada/prevista hoje em São Paulo">
+                  <span class="material-symbols-rounded icon-xs">arrow_downward</span> Mín: <strong id="spTempMin">--°C</strong>
+                </span>
+                <span class="sp-extreme-pill max" title="Temperatura máxima registrada/prevista hoje em São Paulo">
+                  <span class="material-symbols-rounded icon-xs">arrow_upward</span> Máx: <strong id="spTempMax">--°C</strong>
+                </span>
+              </div>
+              <div class="sp-apparent-row">
+                Sensação Térmica em SP: <strong id="spApparentTemp">--°C</strong>
+              </div>
+            </div>
+          </div>
+
+          <div class="compare-analysis" id="analysisTemp">
+            Aguardando sincronização de telemetria para diagnóstico térmico...
+          </div>
+        </article>
+
+        <!-- CARD 2: UMIDADE RELATIVA -->
+        <article class="compare-card">
+          <div class="compare-card-header">
+            <div class="compare-title-row">
+              <div class="card-icon-circle">
+                <span class="material-symbols-rounded">humidity_percentage</span>
+              </div>
+              <div>
+                <h3 class="compare-card-title">Umidade Relativa do Ar</h3>
+                <span class="compare-card-sub">Teor de Vapor d'Água na Atmosfera</span>
+              </div>
+            </div>
+            <div class="delta-badge" id="deltaHumidBadge">
+              <span class="delta-label">Diferença (Δ)</span>
+              <strong id="deltaHumidVal">-- %</strong>
+            </div>
+          </div>
+
+          <div class="compare-split">
+            <div class="compare-side local-side">
+              <div class="side-badge">
+                <span class="material-symbols-rounded icon-xs">memory</span>
+                Sua Estação ESP32
+              </div>
+              <div class="side-value-group">
+                <span class="side-value" id="compLocalHumid">--</span>
+                <span class="side-unit">%</span>
+              </div>
+              <span class="side-sensor-hint">Sensor Capacitivo DHT22</span>
+            </div>
+
+            <div class="compare-divider">
+              <span class="material-symbols-rounded icon-sm">compare_arrows</span>
+            </div>
+
+            <div class="compare-side official-side">
+              <div class="side-badge sp-badge">
+                <span class="material-symbols-rounded icon-xs">public</span>
+                <span class="comp-official-badge-text">São Paulo Oficial</span>
+              </div>
+              <div class="side-value-group">
+                <span class="side-value" id="compSpHumid">--</span>
+                <span class="side-unit">%</span>
+              </div>
+              <div class="sp-apparent-row">
+                Média oficial da Região Metropolitana
+              </div>
+              <span class="side-sensor-hint">Estação Meteorológica Automática (INMET/WMO)</span>
+            </div>
+          </div>
+
+          <div class="compare-analysis" id="analysisHumid">
+            Aguardando sincronização de telemetria para diagnóstico higrométrico...
+          </div>
+        </article>
+
+        <!-- CARD 3: PRESSÃO ATMOSFÉRICA -->
+        <article class="compare-card">
+          <div class="compare-card-header">
+            <div class="compare-title-row">
+              <div class="card-icon-circle">
+                <span class="material-symbols-rounded">speed</span>
+              </div>
+              <div>
+                <h3 class="compare-card-title">Pressão Barométrica</h3>
+                <span class="compare-card-sub">Gradiente Barométrico e Altitude</span>
+              </div>
+            </div>
+            <div class="delta-badge" id="deltaPressBadge">
+              <span class="delta-label">Diferença (Δ)</span>
+              <strong id="deltaPressVal">-- hPa</strong>
+            </div>
+          </div>
+
+          <div class="compare-split">
+            <div class="compare-side local-side">
+              <div class="side-badge">
+                <span class="material-symbols-rounded icon-xs">memory</span>
+                Sua Estação ESP32
+              </div>
+              <div class="side-value-group">
+                <span class="side-value" id="compLocalPress">--</span>
+                <span class="side-unit">hPa</span>
+              </div>
+              <span class="side-sensor-hint">Sensor Barométrico GY-BMP280 I²C</span>
+            </div>
+
+            <div class="compare-divider">
+              <span class="material-symbols-rounded icon-sm">compare_arrows</span>
+            </div>
+
+            <div class="compare-side official-side">
+              <div class="side-badge sp-badge">
+                <span class="material-symbols-rounded icon-xs">public</span>
+                <span class="comp-official-badge-text">São Paulo Oficial</span>
+              </div>
+              <div class="side-value-group">
+                <span class="side-value" id="compSpPress">--</span>
+                <span class="side-unit">hPa</span>
+              </div>
+              <div class="sp-apparent-row">
+                Nível do Mar (MSL): <strong id="spPressMsl">-- hPa</strong>
+              </div>
+              <span class="side-sensor-hint">Superfície Planalto (760m): <strong id="spPressSurface">-- hPa</strong></span>
+            </div>
+          </div>
+
+          <div class="compare-analysis" id="analysisPress">
+            Aguardando sincronização de telemetria para diagnóstico barométrico...
+          </div>
+        </article>
+
+        <!-- CARD 4: QUALIDADE DO AR & POLUENTES -->
+        <article class="compare-card">
+          <div class="compare-card-header">
+            <div class="compare-title-row">
+              <div class="card-icon-circle">
+                <span class="material-symbols-rounded">nest_eco_leaf</span>
+              </div>
+              <div>
+                <h3 class="compare-card-title">Qualidade do Ar & Emissões</h3>
+                <span class="compare-card-sub">Gases Voláteis (PPM) vs. Cálculo Atmosférico SP (PPM)</span>
+              </div>
+            </div>
+            <div class="delta-badge" id="deltaAirBadge">
+              <span class="delta-label">Diferença em PPM</span>
+              <strong id="deltaAirVal">-- PPM</strong>
+            </div>
+          </div>
+
+          <div class="compare-split">
+            <div class="compare-side local-side">
+              <div class="side-badge">
+                <span class="material-symbols-rounded icon-xs">memory</span>
+                Sua Estação ESP32
+              </div>
+              <div class="side-value-group">
+                <span class="side-value" id="compLocalAir">--</span>
+                <span class="side-unit">PPM</span>
+              </div>
+              <span class="side-sensor-hint">Sensor MQ-135 (NH₃, NOₓ, Álcool, CO₂)</span>
+            </div>
+
+            <div class="compare-divider">
+              <span class="material-symbols-rounded icon-sm">compare_arrows</span>
+            </div>
+
+            <div class="compare-side official-side">
+              <div class="side-badge sp-badge">
+                <span class="material-symbols-rounded icon-xs">public</span>
+                <span class="comp-official-badge-text">São Paulo Oficial (Cálculo em PPM)</span>
+              </div>
+              <div class="side-value-group">
+                <span class="side-value" id="compSpAirPpm">--</span>
+                <span class="side-unit">PPM</span>
+              </div>
+              <span class="side-sensor-hint" id="compSpAirFormulaHint">Cálculo: Base CO₂ 415 + AQI & Gases</span>
+              <div class="sp-pollutants-grid">
+                <div class="sp-pollutant-item">
+                  <span class="sp-pol-name">AQI:</span>
+                  <strong id="compSpAqi">--</strong>
+                </div>
+                <div class="sp-pollutant-item">
+                  <span class="sp-pol-name">CO:</span>
+                  <strong id="spCo">--</strong>
+                </div>
+                <div class="sp-pollutant-item">
+                  <span class="sp-pol-name">PM2.5:</span>
+                  <strong id="spPm25">-- µg/m³</strong>
+                </div>
+                <div class="sp-pollutant-item">
+                  <span class="sp-pol-name">PM10:</span>
+                  <strong id="spPm10">-- µg/m³</strong>
+                </div>
+                <div class="sp-pollutant-item">
+                  <span class="sp-pol-name">NO₂:</span>
+                  <strong id="spNo2">-- µg/m³</strong>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="compare-analysis" id="analysisAir">
+            Aguardando sincronização de índices ambientais...
+          </div>
+        </article>
+
+      </div>
+
+      <!-- Painel das Condições Gerais da Cidade de São Paulo -->
+      <section class="sp-overview-panel">
+        <div class="panel-card-header">
+          <span class="panel-tag">
+            <span class="material-symbols-rounded icon-xs">wb_cloudy</span>
+            Rede Meteorológica Municipal
+          </span>
+          <h2 id="spOverviewTitle">Panorama Climático de São Paulo</h2>
+          <p id="spOverviewSubtitle">Condições atmosféricas gerais aferidas para a metrópole</p>
+        </div>
+
+        <div class="sp-overview-grid">
+          <div class="sp-cond-card">
+            <div class="sp-cond-icon-box">
+              <span class="material-symbols-rounded" id="spWeatherIcon">cloud</span>
+            </div>
+            <div class="sp-cond-info">
+              <span class="sp-cond-label">Condição do Tempo</span>
+              <strong class="sp-cond-val" id="spWeatherDesc">Sincronizando...</strong>
+            </div>
+          </div>
+
+          <div class="sp-cond-card">
+            <div class="sp-cond-icon-box icon-rain">
+              <span class="material-symbols-rounded">water_drop</span>
+            </div>
+            <div class="sp-cond-info">
+              <span class="sp-cond-label">Precipitação Acumulada</span>
+              <strong class="sp-cond-val" id="spPrecipitation">-- mm</strong>
+              <small class="sp-cond-sub">Chuva registrada hoje na capital</small>
+            </div>
+          </div>
+
+          <div class="sp-cond-card">
+            <div class="sp-cond-icon-box icon-thermo">
+              <span class="material-symbols-rounded">thermostat</span>
+            </div>
+            <div class="sp-cond-info">
+              <span class="sp-cond-label">Amplitude Térmica do Dia</span>
+              <strong class="sp-cond-val" id="spThermalRange">-- °C</strong>
+              <small class="sp-cond-sub">Variação mínima e máxima em SP</small>
+            </div>
+          </div>
+
+          <div class="sp-cond-card">
+            <div class="sp-cond-icon-box icon-altitude">
+              <span class="material-symbols-rounded">landscape</span>
+            </div>
+            <div class="sp-cond-info">
+              <span class="sp-cond-label">Altitude Barométrica</span>
+              <strong class="sp-cond-val">758 metros</strong>
+              <small class="sp-cond-sub">Planalto de Piratininga</small>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Painel Editorial de Fundamentação Científica -->
+      <section class="science-explanation-panel">
+        <div class="panel-tag">
+          <span class="material-symbols-rounded icon-xs">school</span>
+          Engenharia & Análise Científica
+        </div>
+        <h3 class="science-title">Entendendo a Diferença entre Microclima Local e Estação Central</h3>
+        <p class="science-intro">
+          No projeto da estação meteorológica com ESP32, divergências pontuais entre o sensor local e os registros oficiais da metrópole evidenciam a física do <strong>Microclima Urbano</strong>:
+        </p>
+        <div class="science-reasons-grid">
+          <div class="science-reason-card">
+            <div class="reason-header">
+              <span class="material-symbols-rounded reason-icon">domain</span>
+              <strong>Efeito Ilha de Calor & Confinamento</strong>
+            </div>
+            <p>
+              Ambientes construídos, alvenaria e asfalto retêm calor por inércia térmica, criando diferenças térmicas de 2°C a 4°C em relação aos parques abertos onde operam as estações oficiais (como Mirante de Santana e IAG-USP).
+            </p>
+          </div>
+
+          <div class="science-reason-card">
+            <div class="reason-header">
+              <span class="material-symbols-rounded reason-icon">air</span>
+              <strong>Ventilação e Gradiente de Umidade</strong>
+            </div>
+            <p>
+              Ambientes internos ou sob marquises acumulam vapor de água e gases detectados pelo sensor MQ-135, enquanto a estação oficial mede a dispersão em campo aberto sob ventos livres.
+            </p>
+          </div>
+
+          <div class="science-reason-card">
+            <div class="reason-header">
+              <span class="material-symbols-rounded reason-icon">height</span>
+              <strong>Gradiente Barométrico e Altitude</strong>
+            </div>
+            <p>
+              A cidade de São Paulo possui desníveis de mais de 100 metros entre a várzea do Rio Tietê (720m) e o Espigão da Paulista (820m). A cada 10 metros de ganho de altitude, a pressão barométrica cai aproximadamente 1.2 hPa, o que é detectado com exatidão pelo BMP280.
+            </p>
+          </div>
+
+          <div class="science-reason-card">
+            <div class="reason-header">
+              <span class="material-symbols-rounded reason-icon">nest_eco_leaf</span>
+              <strong>Cálculo & Conversão de Ar em PPM</strong>
+            </div>
+            <p>
+              O MQ-135 fornece uma estimativa dependente do circuito, aquecimento e calibração.
+              Essa estimativa não constitui medição seletiva de CO₂ e não deve ser comparada diretamente
+              ao AQI ou a concentrações de poluentes diferentes.
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </div>
+    <!-- FIM DA ABA 2: COMPARATIVO SÃO PAULO -->
+
+    <!-- Rodapé Editorial -->
+    <footer class="main-footer">
+      <div class="footer-brand">
+        <strong>Atmosfera.</strong>
+        <span>Estação Meteorológica ESP32 • MicroPython</span>
+      </div>
+      <p>Disciplina 68F3 - Projeto e Desenvolvimento II • Engenharia da Computação</p>
+    </footer>
+
+  </div>
+
+  <!-- Lógica Principal do Dashboard -->
+  <script src="app.js?v=3.0"></script>
+</body>
+</html>

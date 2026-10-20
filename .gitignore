@@ -1,0 +1,50 @@
+# ==============================================================================
+# .gitignore — Estação Meteorológica com ESP32
+# ==============================================================================
+
+# Arquivos compactados e pacotes de entrega
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.rar
+*.bak
+*.orig
+
+# Ambientes virtuais e caches Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+build/
+dist/
+
+# Variáveis de ambiente e segredos locais
+.env
+.env.*
+!.env.example
+*.local
+
+# Dependências JavaScript / Web / Firebase
+node_modules/
+.firebase/
+.npm/
+
+# Sistema operacional e configurações de IDEs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Configuracao privada da placa
+firmware/config.py
