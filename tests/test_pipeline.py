@@ -1,6 +1,7 @@
 import asyncio
 import importlib.util
 import json
+import os
 import sys
 import types
 import unittest
@@ -69,6 +70,41 @@ class ValidationTests(unittest.TestCase):
         result = client.options("/api/leituras/ultimas-24h", headers=headers | {"Origin":"https://example.invalid"})
         self.assertEqual(result.status_code,400)
 
+    def test_http_ingestion_disabled_or_authenticated_without_touching_mqtt(self):
+        from fastapi.testclient import TestClient
+        client = TestClient(api.app)
+        with patch.object(api, "persistir", return_value={"status":"sucesso"}) as save:
+            with patch.dict(os.environ, {"HTTP_INGEST_TOKEN":""}):
+                self.assertEqual(client.post("/api/leituras",json=BASE).status_code,404)
+            with patch.dict(os.environ, {"HTTP_INGEST_TOKEN":"segredo-teste"}):
+                self.assertEqual(client.post("/api/leituras",json=BASE).status_code,401)
+                self.assertEqual(client.post("/api/leituras",json=BASE,headers={"Authorization":"Bearer errado"}).status_code,401)
+                save.assert_not_called()
+                result=client.post("/api/leituras",json=BASE,headers={"Authorization":"Bearer segredo-teste"})
+                self.assertEqual(result.status_code,201)
+                self.assertIn("api;dur=",result.headers["Server-Timing"])
+                save.assert_called_once()
+
+    def test_sql_timing_records_fetch_without_query_parameters(self):
+        cur=MagicMock()
+        cur.with_rows=True
+        cur.fetchone.return_value={"id":1}
+        medido=api.CursorMedido(cur)
+        with self.assertLogs(api.log,level="INFO") as logs:
+            medido.execute("SELECT id FROM leitura WHERE boot_id=%s",("valor-privado",))
+            self.assertEqual(medido.fetchone(),{"id":1})
+        self.assertIn("SQL consulta=",logs.output[0])
+        self.assertIn("duracao_ms=",logs.output[0])
+        self.assertNotIn("valor-privado",str(logs.output))
+
+    def test_api_timing_records_read_failure_without_secrets(self):
+        from fastapi.testclient import TestClient
+        with patch.object(api,"pool",None), self.assertLogs(api.log,level="INFO") as logs:
+            result=TestClient(api.app).get("/api/leituras/ultimas-24h")
+        self.assertEqual(result.status_code,503)
+        self.assertIn("api;dur=",result.headers["Server-Timing"])
+        self.assertTrue(any("API metodo=GET" in line and "status=503" in line for line in logs.output))
+
     def test_persistence_and_duplicate(self):
         pool, conn, cur = MagicMock(), MagicMock(), MagicMock()
         pool.get_connection.return_value = conn
@@ -119,7 +155,8 @@ class ValidationTests(unittest.TestCase):
         self.assertTrue(r.json()["esp32_ativo"])
         self.assertIsNone(r.json()["historico"][0]["temperatura"])
         self.assertTrue(any("INTERVAL 1 DAY" in c.args[0] for c in cur.execute.call_args_list))
-        self.assertEqual(client.post("/api/leituras", json=BASE | {"umidade": 101}).status_code, 422)
+        with patch.dict(os.environ, {"HTTP_INGEST_TOKEN":"segredo-teste"}):
+            self.assertEqual(client.post("/api/leituras", json=BASE | {"umidade": 101}, headers={"Authorization":"Bearer segredo-teste"}).status_code, 422)
         with patch.object(api, "pool", None):
             r = client.get("/api/leituras/ultimas-24h")
             self.assertEqual(r.status_code, 503)
@@ -176,6 +213,19 @@ class FirmwareAsyncTests(unittest.IsolatedAsyncioTestCase):
             "network":types.SimpleNamespace(STA_IF=0, WLAN=lambda *a:wlan),
             "mqtt_async":types.SimpleNamespace(MQTTClient=object)}):
             return load("firmware_async_test", ROOT / "firmware/main.py"), wlan
+
+    async def test_ldr_adc_extremes_report_saturation_instead_of_fixed_lux(self):
+        fw,_=self.firmware()
+        fw.adc_ldr=MagicMock()
+        for raw in (0,4095):
+            fw.adc_ldr.read.return_value=raw
+            data=fw.obter_leituras()
+            self.assertIsNone(data["luminosidade"])
+            self.assertEqual(data["estado_sensores"]["luminosidade"],"saturado")
+        fw.adc_ldr.read.return_value=2048
+        data=fw.obter_leituras()
+        self.assertGreater(data["luminosidade"],0)
+        self.assertEqual(data["estado_sensores"]["luminosidade"],"estimativa")
 
     async def test_acquisition_runs_without_browser(self):
         fw, _ = self.firmware()

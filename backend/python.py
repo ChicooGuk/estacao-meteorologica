@@ -3,6 +3,8 @@ import logging
 import os
 import time
 import asyncio
+import secrets
+import hashlib
 from threading import Event
 from contextlib import asynccontextmanager, contextmanager
 from datetime import datetime
@@ -11,7 +13,7 @@ from statistics import median
 import mysql.connector
 from mysql.connector.pooling import MySQLConnectionPool
 import paho.mqtt.client as mqtt
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field, ConfigDict, ValidationError
@@ -94,10 +96,51 @@ def conexao():
         conn.close()
 
 
+class CursorMedido:
+    """Registra tempo de execute + leitura dos resultados, sem valores ou SQL nos logs."""
+    def __init__(self, cursor):
+        self.cursor = cursor
+        self.inicio = None
+
+    def concluir(self):
+        if self.inicio is not None:
+            log.info("SQL consulta=%s duracao_ms=%.2f", self.identificador,
+                     (time.perf_counter() - self.inicio) * 1000)
+            self.inicio = None
+
+    def execute(self, sql, params):
+        self.inicio = time.perf_counter()
+        self.identificador = hashlib.sha256(sql.encode()).hexdigest()[:8]
+        try:
+            result = self.cursor.execute(sql, params)
+            if not self.cursor.with_rows:
+                self.concluir()
+            return result
+        except Exception:
+            self.concluir()
+            raise
+
+    def fetchone(self):
+        try:
+            return self.cursor.fetchone()
+        finally:
+            self.concluir()
+
+    def fetchall(self):
+        try:
+            return self.cursor.fetchall()
+        finally:
+            self.concluir()
+
+    def close(self):
+        self.concluir()
+        self.cursor.close()
+
+
 def persistir(dados):
     inicio = time.monotonic()
     with conexao() as conn:
-        cur = conn.cursor(dictionary=True)
+        cur = CursorMedido(conn.cursor(dictionary=True))
         try:
             # Serializa ingestao por estacao; nao usa uma conexao global compartilhada.
             cur.execute("SELECT id_estacao FROM estacao WHERE id_estacao=%s FOR UPDATE", (dados.id_estacao,))
@@ -233,7 +276,33 @@ app.add_middleware(CORSMiddleware,
     max_age=3600)
 
 
-@app.post("/api/leituras", status_code=201)
+@app.middleware("http")
+async def medir_api(request, call_next):
+    inicio = time.perf_counter()
+    status_code = 500
+    try:
+        response = await call_next(request)
+        status_code = response.status_code
+        response.headers["Server-Timing"] = "api;dur=%.2f" % ((time.perf_counter() - inicio) * 1000)
+        return response
+    finally:
+        if request.url.path.startswith("/api/"):
+            log.info("API metodo=%s rota=%s status=%s duracao_ms=%.2f",
+                     request.method, request.url.path, status_code,
+                     (time.perf_counter() - inicio) * 1000)
+
+
+def autorizar_ingestao(authorization: str | None = Header(default=None)):
+    # MQTT e o fluxo principal. Ingestao HTTP fica desligada sem token privado.
+    token = os.getenv("HTTP_INGEST_TOKEN", "")
+    if not token:
+        raise HTTPException(404, "Ingestao HTTP desabilitada")
+    esperado = ("Bearer " + token).encode()
+    if not secrets.compare_digest((authorization or "").encode(), esperado):
+        raise HTTPException(401, "Autenticacao necessaria", headers={"WWW-Authenticate": "Bearer"})
+
+
+@app.post("/api/leituras", status_code=201, dependencies=[Depends(autorizar_ingestao)])
 def receber_leituras(dados: TelemetriaSchema):
     try:
         return persistir(dados)
@@ -248,7 +317,7 @@ def receber_leituras(dados: TelemetriaSchema):
 def obter_ultimas_leituras(id_estacao: int = Query(default=1, gt=0)):
     try:
         with conexao() as conn:
-            cur = conn.cursor(dictionary=True)
+            cur = CursorMedido(conn.cursor(dictionary=True))
             try:
                 cur.execute("SELECT id_estacao, latitude, longitude, descricao FROM estacao WHERE id_estacao=%s", (id_estacao,))
                 estacao = cur.fetchone()

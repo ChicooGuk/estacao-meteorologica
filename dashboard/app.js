@@ -13,6 +13,8 @@ console.log("[SISTEMA] Dashboard da Estação Meteorológica Inicializado.");
 // Hospedagem separada pode definir window.ESTACAO_API_BASE antes deste script.
 const API_URL = `${window.ESTACAO_API_BASE || ''}/api/leituras/ultimas-24h?id_estacao=1`;
 let consultaEmAndamento = false;
+let estacaoAtual = false;
+let ultimaRespostaApi = 0;
 const formatarNumero = (v, casas = 1) => Number.isFinite(v) ? v.toFixed(casas) : '--';
 
 // ------------------------------------------------------------------------------
@@ -118,7 +120,7 @@ function inicializarMapa() {
     // Marcador da Estação — Arrastável para ajuste fino
     stationMarker = L.marker([initialLat, initialLng], {
       draggable: false,
-      title: "Arraste o pino para refinar a localização"
+      title: "Posição cadastrada da estação"
     }).addTo(map);
 
     stationMarker.bindPopup(`
@@ -510,6 +512,30 @@ function limparHistorico() {
 // ------------------------------------------------------------------------------
 let alertDismissed = false;
 
+function suspenderAlertas() {
+  const banner = document.getElementById('alertBanner');
+  if (banner) banner.classList.add('hidden');
+  alertDismissed = false;
+}
+
+// Se o navegador perder contato ou a coleta parar, nao manter alerta como atual.
+function verificarAtualidade() {
+  if (isDemoMode) return;
+  const amostra = historicoLeituras[historicoLeituras.length - 1];
+  const timestamp = amostra ? Date.parse(amostra.data_hora) : NaN;
+  if (!ultimaRespostaApi || Date.now() - ultimaRespostaApi > 10000 ||
+      !Number.isFinite(timestamp) || Date.now() - timestamp > 10000) {
+    estacaoAtual = false;
+    suspenderAlertas();
+    atualizarComparativoLadoALado(ultimaLeituraLocal);
+    const status = document.getElementById('statusText');
+    const badge = document.getElementById('statusBadge');
+    if (badge) badge.classList.remove('online');
+    if (status && amostra) status.innerText = 'Estacao sem dados recentes (ultima medicao no historico)';
+  }
+}
+
+
 function verificarAlertas(data) {
   const banner = document.getElementById('alertBanner');
   const title = document.getElementById('alertTitle');
@@ -617,6 +643,8 @@ async function atualizarDashboard() {
       if (stationMarker) stationMarker.setOpacity(1);
     }
     if (sensorChart && !data.historico.length) sensorChart.update('none');
+    estacaoAtual = data.esp32_ativo === true;
+    ultimaRespostaApi = Date.now();
     const ultima = data.historico[0];
     renderizarDados(ultima || {}, false);
     if (!data.esp32_ativo) {
@@ -638,6 +666,10 @@ async function atualizarDashboard() {
     if (statusBadge) statusBadge.classList.remove('online');
     if (statusText) statusText.innerText = 'Desconectado';
     if (apiStatus) apiStatus.innerText = 'API indisponivel';
+    estacaoAtual = false;
+    suspenderAlertas();
+    atualizarComparativoLadoALado(ultimaLeituraLocal);
+
     
     // Alerta o usuário no console e mantém cards informativos
     console.warn(`[TELEMETRIA] Falha ao consultar ${API_URL}:`, error.message);
@@ -659,6 +691,7 @@ function animarValorSeMudou(el, novoValor) {
 }
 
 function renderizarDados(data, isMock) {
+  if (isMock) estacaoAtual = true;
   const statusBadge = document.getElementById('statusBadge');
   const statusText = document.getElementById('statusText');
   const apiStatus = document.getElementById('apiStatus');
@@ -747,12 +780,21 @@ function renderizarDados(data, isMock) {
     }
   });
 
+  if (data.estado_sensores?.luminosidade === 'saturado') {
+    const el = document.getElementById('stLight'); if (el) el.innerText = 'Leitura no limite do ADC; estimativa indisponivel';
+  }
+  if (!isMock && !estacaoAtual && data.data_hora) {
+    for (const id of ['stTemp','stPress','stUmid','stAir','stLight']) {
+      const el = document.getElementById(id); if (el) el.innerText = 'Sem medicao atual; consulte o horario da ultima leitura';
+    }
+  }
   if (isMock) atualizarEstatisticas(data);
 
 
 
   // 5. Verifica Alertas
-  verificarAlertas(data.valores_alerta || data);
+  if (isMock || estacaoAtual) verificarAlertas(data.valores_alerta || data);
+  else suspenderAlertas();
 
   // 6. Atualiza o Módulo Comparativo com São Paulo
   atualizarComparativoLadoALado(data);
@@ -857,240 +899,93 @@ function inicializarNavegacaoAbas() {
 // INTEGRAÇÃO METEOROLÓGICA OFICIAL: SÃO PAULO (OPEN-METEO WMO & AIR QUALITY)
 // ------------------------------------------------------------------------------
 let ultimaLeituraLocal = null;
-let dadosOficiaisSP = {
-  temp: 14.2,
-  tempMin: 14.1,
-  tempMax: 22.1,
-  apparentTemp: 13.3,
-  humid: 85,
-  pressMsl: 1019.5,
-  pressSurface: 932.4,
-  weatherCode: 3,
-  precipitation: 0.0,
-  aqi: 56,
-  pm25: 16.7,
-  pm10: 19.8,
-  co: 165.0,
-  no2: 28.0,
-  o3: 29.0,
-  airPpm: 543,
-  coPpm: 0.144,
-  no2Ppm: 0.015,
-  lastUpdate: '--:--:--'
-};
-
-/**
- * Calcula a qualidade do ar de São Paulo expressa em PPM (Partes Por Milhão)
- * para viabilizar comparação direta com as leituras do sensor MQ-135 da estação ESP32.
- * 
- * Modelo Científico / Correlação Atmosférica:
- * - Linha de base da troposfera: ~415 PPM de CO2 atmosférico global
- * - Conversão de CO de µg/m³ para PPM (Massa molar CO = 28.01 g/mol, Vm = 24.45 L a 25°C e 1 atm):
- *     1 PPM CO = 1145 µg/m³
- * - Conversão de NO2 de µg/m³ para PPM (Massa molar NO2 = 46.01 g/mol):
- *     1 PPM NO2 = 1880 µg/m³
- * - Resposta proporcional do semicondutor SnO2 (MQ-135) à dispersão urbana de gases e particulados:
- *     Incremento por AQI (Cetesb/EPA): 1.8 PPM por ponto de AQI
- *     Incremento por material particulado (PM2.5): 1.2 PPM por cada 1 µg/m³
- */
-function calcularQualidadeArSpEmPpm(aqi, coUgM3, pm25, no2UgM3) {
-  const baseAtmosphericCo2Ppm = 415;
-  const coPpm = (coUgM3 || 0) / 1145;
-  const no2Ppm = (no2UgM3 || 0) / 1880;
-  
-  const incrementoAqi = (aqi || 0) * 1.8;
-  const incrementoCo = coPpm * 40;
-  const incrementoPm = ((pm25 || 0) / 10) * 12;
-  const incrementoNo2 = no2Ppm * 80;
-
-  const totalPpm = Math.round(baseAtmosphericCo2Ppm + incrementoAqi + incrementoCo + incrementoPm + incrementoNo2);
-  return {
-    totalPpm,
-    coPpm: Number(coPpm.toFixed(3)),
-    no2Ppm: Number(no2Ppm.toFixed(3)),
-    baseAtmosphericCo2Ppm
-  };
+function referenciaVazia() {
+  return {temp:null, tempMin:null, tempMax:null, apparentTemp:null, humid:null,
+    pressMsl:null, pressSurface:null, weatherCode:null, precipitation:null,
+    aqi:null, pm25:null, pm10:null, co:null, no2:null, o3:null, altitude:null,
+    climaStatus:'Aguardando consulta', arStatus:'Aguardando consulta', lastUpdate:'Aguardando dados'};
 }
+let dadosOficiaisSP = referenciaVazia();
+let pedidoComparativo = 0;
 
 async function obterDadosComparativos(modo = modoComparativo) {
   modoComparativo = modo;
-
-  const btnRefresh = document.getElementById('btnRefreshSP');
-  if (btnRefresh) {
-    btnRefresh.innerHTML = '<span class="material-symbols-rounded icon-sm spin-icon">sync</span> Atualizando...';
+  const pedido = ++pedidoComparativo;
+  dadosOficiaisSP = referenciaVazia();
+  renderizarDadosOficiaisSP();
+  if (ultimaLeituraLocal) atualizarComparativoLadoALado(ultimaLeituraLocal);
+  const local = modo === 'local';
+  const lat = local ? currentCoords.lat : DEFAULT_LAT;
+  const lng = local ? currentCoords.lng : DEFAULT_LNG;
+  const nome = local ? 'Coordenadas da estacao' : 'Sao Paulo';
+  const escrever = (id, texto) => { const el = document.getElementById(id); if (el) el.innerText = texto; };
+  escrever('compMetaStation', `${nome}: ${lat.toFixed(4)}, ${lng.toFixed(4)} - Open-Meteo`);
+  escrever('syncLabelPrefix','Referencia Open-Meteo');
+  escrever('spOverviewTitle',`Referencia ambiental: ${nome}`);
+  escrever('spOverviewSubtitle','Dados externos para as coordenadas consultadas; nao sao leituras do ESP32.');
+  document.querySelectorAll('.comp-official-badge-text').forEach(el => { el.innerText = 'Referencia Open-Meteo'; });
+  for (const [id, ativo] of [['btnCompSP',!local],['btnCompLocal',local]]) {
+    const el = document.getElementById(id); if (el) el.classList.toggle('active',ativo);
   }
-
-  // Atualiza botões visuais do seletor
-  const btnSP = document.getElementById('btnCompSP');
-  const btnLocal = document.getElementById('btnCompLocal');
-  if (btnSP && btnLocal) {
-    if (modo === 'sp') {
-      btnSP.classList.add('active');
-      btnLocal.classList.remove('active');
-    } else {
-      btnLocal.classList.add('active');
-      btnSP.classList.remove('active');
-    }
-  }
-
-  let targetLat = -23.5505;
-  let targetLng = -46.6333;
-  let nomeEstacao = 'São Paulo Capital (Mirante de Santana • 758m altitude • WMO 83781)';
-  let rotuloBadge = 'São Paulo Oficial';
-  let prefixoSinc = 'Oficial SP';
-  let tituloPanorama = 'Panorama Climático de São Paulo';
-  let subtituloPanorama = 'Condições atmosféricas gerais aferidas para a metrópole';
-
-  if (modo === 'local') {
-    targetLat = currentCoords.lat || -23.5505;
-    targetLng = currentCoords.lng || -46.6333;
-    const localNome = currentCoords.bairro || currentCoords.source || 'Sua Região';
-    nomeEstacao = `Sua Região: ${localNome} (GPS: ${targetLat.toFixed(4)}, ${targetLng.toFixed(4)})`;
-    rotuloBadge = `${localNome.split('—')[0].split(',')[0].trim()} (Oficial)`;
-    prefixoSinc = 'Oficial Região';
-    tituloPanorama = `Panorama Climático da Sua Região`;
-    subtituloPanorama = `Condições atmosféricas oficiais aferidas para suas coordenadas geográficas`;
-  }
-
-  const compMetaStation = document.getElementById('compMetaStation');
-  const compMetaIcon = document.getElementById('compMetaIcon');
-  const syncLabelPrefix = document.getElementById('syncLabelPrefix');
-  const spOverviewTitle = document.getElementById('spOverviewTitle');
-  const spOverviewSubtitle = document.getElementById('spOverviewSubtitle');
-  const compOfficialBadgeTexts = document.querySelectorAll('.comp-official-badge-text');
-
-  if (compMetaStation) compMetaStation.innerText = nomeEstacao;
-  if (compMetaIcon) compMetaIcon.innerText = modo === 'local' ? 'my_location' : 'location_city';
-  if (syncLabelPrefix) syncLabelPrefix.innerText = prefixoSinc;
-  if (spOverviewTitle) spOverviewTitle.innerText = tituloPanorama;
-  if (spOverviewSubtitle) spOverviewSubtitle.innerText = subtituloPanorama;
-  compOfficialBadgeTexts.forEach(el => { el.innerText = rotuloBadge; });
-
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 8000);
+  const base = `latitude=${lat}&longitude=${lng}&timezone=America%2FSao_Paulo`;
+  const leitura = async url => {
+    const response = await fetch(url,{signal:controller.signal});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return response.json();
+  };
   try {
-    // 1. Clima, extremos diários e pressão para a coordenada alvo (SP Capital ou Coordenada GPS do usuário)
-    const urlClima = `https://api.open-meteo.com/v1/forecast?latitude=${targetLat}&longitude=${targetLng}&current=temperature_2m,relative_humidity_2m,surface_pressure,pressure_msl,apparent_temperature,precipitation,weather_code&daily=temperature_2m_max,temperature_2m_min&timezone=America%2FSao_Paulo`;
-    
-    // 2. Qualidade do ar para a coordenada alvo
-    const urlAr = `https://air-quality-api.open-meteo.com/v1/air-quality?latitude=${targetLat}&longitude=${targetLng}&current=us_aqi,european_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,ozone&timezone=America%2FSao_Paulo`;
-
-    const [respClima, respAr] = await Promise.all([
-      fetch(urlClima),
-      fetch(urlAr)
+    const [clima, ar] = await Promise.allSettled([
+      leitura(`https://api.open-meteo.com/v1/forecast?${base}&current=temperature_2m,relative_humidity_2m,surface_pressure,pressure_msl,apparent_temperature,precipitation,weather_code&daily=temperature_2m_max,temperature_2m_min`),
+      leitura(`https://air-quality-api.open-meteo.com/v1/air-quality?${base}&current=us_aqi,pm10,pm2_5,carbon_monoxide,nitrogen_dioxide,ozone`)
     ]);
-
-    if (respClima.ok) {
-      const dataClima = await respClima.json();
-      const curr = dataClima.current || {};
-      const daily = dataClima.daily || {};
-
-      dadosOficiaisSP.temp = curr.temperature_2m ?? dadosOficiaisSP.temp;
-      dadosOficiaisSP.humid = curr.relative_humidity_2m ?? dadosOficiaisSP.humid;
-      dadosOficiaisSP.pressMsl = curr.pressure_msl ?? dadosOficiaisSP.pressMsl;
-      dadosOficiaisSP.pressSurface = curr.surface_pressure ?? dadosOficiaisSP.pressSurface;
-      dadosOficiaisSP.apparentTemp = curr.apparent_temperature ?? dadosOficiaisSP.apparentTemp;
-      dadosOficiaisSP.precipitation = curr.precipitation ?? dadosOficiaisSP.precipitation;
-      dadosOficiaisSP.weatherCode = curr.weather_code ?? dadosOficiaisSP.weatherCode;
-
-      if (daily.temperature_2m_min && daily.temperature_2m_min.length > 0) {
-        dadosOficiaisSP.tempMin = daily.temperature_2m_min[0];
-      }
-      if (daily.temperature_2m_max && daily.temperature_2m_max.length > 0) {
-        dadosOficiaisSP.tempMax = daily.temperature_2m_max[0];
-      }
-    }
-
-    if (respAr.ok) {
-      const dataAr = await respAr.json();
-      const currAr = dataAr.current || {};
-      dadosOficiaisSP.aqi = currAr.us_aqi ?? dadosOficiaisSP.aqi;
-      dadosOficiaisSP.pm25 = currAr.pm2_5 ?? dadosOficiaisSP.pm25;
-      dadosOficiaisSP.pm10 = currAr.pm10 ?? dadosOficiaisSP.pm10;
-      dadosOficiaisSP.co = currAr.carbon_monoxide ?? dadosOficiaisSP.co;
-      dadosOficiaisSP.no2 = currAr.nitrogen_dioxide ?? dadosOficiaisSP.no2;
-      dadosOficiaisSP.o3 = currAr.ozone ?? dadosOficiaisSP.o3;
-
-      // Executa cálculo do PPM equivalente
-      const calcPpm = calcularQualidadeArSpEmPpm(
-        dadosOficiaisSP.aqi,
-        dadosOficiaisSP.co,
-        dadosOficiaisSP.pm25,
-        dadosOficiaisSP.no2
-      );
-      dadosOficiaisSP.airPpm = calcPpm.totalPpm;
-      dadosOficiaisSP.coPpm = calcPpm.coPpm;
-      dadosOficiaisSP.no2Ppm = calcPpm.no2Ppm;
-    }
-
-    dadosOficiaisSP.lastUpdate = new Date().toLocaleTimeString('pt-BR');
+    if (pedido !== pedidoComparativo) return;
+    const referencia = referenciaVazia();
+    const numero = v => Number.isFinite(v) ? v : null;
+    if (clima.status === 'fulfilled' && clima.value.current) {
+      const c = clima.value.current;
+      const d = clima.value.daily || {};
+      Object.assign(referencia, {temp:numero(c.temperature_2m), humid:numero(c.relative_humidity_2m),
+        pressMsl:numero(c.pressure_msl), pressSurface:numero(c.surface_pressure),
+        apparentTemp:numero(c.apparent_temperature), precipitation:numero(c.precipitation),
+        weatherCode:numero(c.weather_code), altitude:numero(clima.value.elevation), tempMin:numero(d.temperature_2m_min?.[0]),
+        tempMax:numero(d.temperature_2m_max?.[0]), climaStatus:c.time ? `Clima: ${c.time.replace('T',' ')}` : 'Clima: horario nao informado'});
+    } else referencia.climaStatus = 'Clima indisponivel';
+    if (ar.status === 'fulfilled' && ar.value.current) {
+      const c = ar.value.current;
+      Object.assign(referencia,{aqi:numero(c.us_aqi), pm25:numero(c.pm2_5), pm10:numero(c.pm10),
+        co:numero(c.carbon_monoxide), no2:numero(c.nitrogen_dioxide), o3:numero(c.ozone),
+        arStatus:c.time ? `Ar: ${c.time.replace('T',' ')}` : 'Ar: horario nao informado'});
+    } else referencia.arStatus = 'Qualidade do ar indisponivel';
+    referencia.lastUpdate = `${referencia.climaStatus} | ${referencia.arStatus}`;
+    dadosOficiaisSP = referencia;
     renderizarDadosOficiaisSP();
-
-    if (ultimaLeituraLocal) {
-      atualizarComparativoLadoALado(ultimaLeituraLocal);
-    }
-    console.log(`[OPEN-METEO] Dados comparativos (${modo.toUpperCase()}: Lat ${targetLat}, Lng ${targetLng}) sincronizados com sucesso.`);
-  } catch (err) {
-    console.warn("[OPEN-METEO] Falha ao sincronizar dados comparativos:", err);
-  } finally {
-    if (btnRefresh) {
-      const label = modo === 'local' ? 'Atualizar Região' : 'Atualizar SP';
-      btnRefresh.innerHTML = `<span class="material-symbols-rounded icon-sm">refresh</span> <span id="btnRefreshSPLabel">${label}</span>`;
-    }
-  }
+    if (ultimaLeituraLocal) atualizarComparativoLadoALado(ultimaLeituraLocal);
+  } finally { clearTimeout(timeout); }
 }
 
-// Alias de retrocompatibilidade
 const obterDadosOficiaisSaoPaulo = () => obterDadosComparativos(modoComparativo);
 
 function renderizarDadosOficiaisSP() {
-  const spLastUpdate = document.getElementById('spLastUpdate');
-  const compSpTemp = document.getElementById('compSpTemp');
-  const spTempMin = document.getElementById('spTempMin');
-  const spTempMax = document.getElementById('spTempMax');
-  const spApparentTemp = document.getElementById('spApparentTemp');
-  const compSpHumid = document.getElementById('compSpHumid');
-  const compSpPress = document.getElementById('compSpPress');
-  const spPressMsl = document.getElementById('spPressMsl');
-  const spPressSurface = document.getElementById('spPressSurface');
-  const compSpAirPpm = document.getElementById('compSpAirPpm');
-  const compSpAqi = document.getElementById('compSpAqi');
-  const spPm25 = document.getElementById('spPm25');
-  const spPm10 = document.getElementById('spPm10');
-  const spCo = document.getElementById('spCo');
-  const spNo2 = document.getElementById('spNo2');
-  const compSpAirFormulaHint = document.getElementById('compSpAirFormulaHint');
-  const spWeatherIcon = document.getElementById('spWeatherIcon');
-  const spWeatherDesc = document.getElementById('spWeatherDesc');
-  const spPrecipitation = document.getElementById('spPrecipitation');
-  const spThermalRange = document.getElementById('spThermalRange');
-
-  if (spLastUpdate) spLastUpdate.innerText = dadosOficiaisSP.lastUpdate;
-  if (compSpTemp) compSpTemp.innerText = dadosOficiaisSP.temp.toFixed(1);
-  if (spTempMin) spTempMin.innerText = `${dadosOficiaisSP.tempMin.toFixed(1)}°C`;
-  if (spTempMax) spTempMax.innerText = `${dadosOficiaisSP.tempMax.toFixed(1)}°C`;
-  if (spApparentTemp) spApparentTemp.innerText = `${dadosOficiaisSP.apparentTemp.toFixed(1)}°C`;
-  if (compSpHumid) compSpHumid.innerText = Math.round(dadosOficiaisSP.humid);
-  if (compSpPress) compSpPress.innerText = dadosOficiaisSP.pressMsl.toFixed(1);
-  if (spPressMsl) spPressMsl.innerText = `${dadosOficiaisSP.pressMsl.toFixed(1)} hPa`;
-  if (spPressSurface) spPressSurface.innerText = `${dadosOficiaisSP.pressSurface.toFixed(1)} hPa`;
-  
-  if (compSpAirPpm) compSpAirPpm.innerText = Math.round(dadosOficiaisSP.airPpm);
-  if (compSpAqi) compSpAqi.innerText = Math.round(dadosOficiaisSP.aqi);
-  if (spPm25) spPm25.innerText = `${dadosOficiaisSP.pm25.toFixed(1)} µg/m³`;
-  if (spPm10) spPm10.innerText = `${dadosOficiaisSP.pm10.toFixed(1)} µg/m³`;
-  if (spCo) spCo.innerText = `${Math.round(dadosOficiaisSP.co)} µg/m³ (${dadosOficiaisSP.coPpm} ppm)`;
-  if (spNo2) spNo2.innerText = `${dadosOficiaisSP.no2.toFixed(1)} µg/m³`;
-  if (compSpAirFormulaHint) {
-    compSpAirFormulaHint.innerText = `Cálculo: Base 415 + AQI(${Math.round(dadosOficiaisSP.aqi)}) + Gases/Particulados`;
+  const r = dadosOficiaisSP;
+  const textos = {spLastUpdate:r.lastUpdate,
+    compSpTemp:formatarNumero(r.temp), spTempMin:`${formatarNumero(r.tempMin)}°C`,
+    spTempMax:`${formatarNumero(r.tempMax)}°C`, spApparentTemp:`${formatarNumero(r.apparentTemp)}°C`,
+    compSpHumid:formatarNumero(r.humid,0), compSpPress:formatarNumero(r.pressSurface),
+    spPressMsl:`${formatarNumero(r.pressMsl)} hPa`, spPressSurface:`${formatarNumero(r.pressSurface)} hPa`,
+    compSpAqi:formatarNumero(r.aqi,0), compSpAirIndex:formatarNumero(r.aqi,0), spPm25:`${formatarNumero(r.pm25)} µg/m³`,
+    spPm10:`${formatarNumero(r.pm10)} µg/m³`, spCo:`${formatarNumero(r.co)} µg/m³`,
+    spNo2:`${formatarNumero(r.no2)} µg/m³`, spPrecipitation:`${formatarNumero(r.precipitation)} mm`,
+    spThermalRange:Number.isFinite(r.tempMax)&&Number.isFinite(r.tempMin) ? `${formatarNumero(r.tempMax-r.tempMin)}°C` : '--',
+    spElevation:`${formatarNumero(r.altitude,0)} m`,
+    compSpAirFormulaHint:'AQI e concentracoes individuais; sem conversao para PPM equivalente.'};
+  for (const [id,texto] of Object.entries(textos)) {
+    const el = document.getElementById(id); if (el) el.innerText = texto;
   }
-  if (spPrecipitation) spPrecipitation.innerText = `${dadosOficiaisSP.precipitation.toFixed(1)} mm`;
-
-  const amplitude = dadosOficiaisSP.tempMax - dadosOficiaisSP.tempMin;
-  if (spThermalRange) spThermalRange.innerText = `${amplitude.toFixed(1)} °C`;
-
-  // Tradução do WMO Weather Code
-  const condicao = traduzirCondicaoTempo(dadosOficiaisSP.weatherCode);
-  if (spWeatherIcon) spWeatherIcon.innerText = condicao.icon;
-  if (spWeatherDesc) spWeatherDesc.innerText = condicao.desc;
+  const condicao = Number.isFinite(r.weatherCode) ? traduzirCondicaoTempo(r.weatherCode) : {icon:'cloud_off',desc:'Referencia indisponivel'};
+  const icon = document.getElementById('spWeatherIcon'); if (icon) icon.innerText = condicao.icon;
+  const desc = document.getElementById('spWeatherDesc'); if (desc) desc.innerText = condicao.desc;
 }
 
 function traduzirCondicaoTempo(wmoCode) {
@@ -1121,101 +1016,33 @@ function traduzirCondicaoTempo(wmoCode) {
 // CÁLCULO DINÂMICO DO COMPARATIVO LADO A LADO E DELTAS
 // ------------------------------------------------------------------------------
 function atualizarComparativoLadoALado(data) {
-  if (!data) return;
-  ultimaLeituraLocal = data;
-
-  const compLocalTemp = document.getElementById('compLocalTemp');
-  const compLocalHumid = document.getElementById('compLocalHumid');
-  const compLocalPress = document.getElementById('compLocalPress');
-  const compLocalAir = document.getElementById('compLocalAir');
-
-  if (compLocalTemp && Number.isFinite(data.temperatura)) compLocalTemp.innerText = data.temperatura.toFixed(1);
-  if (compLocalHumid && Number.isFinite(data.umidade)) compLocalHumid.innerText = data.umidade.toFixed(1);
-  if (compLocalPress && Number.isFinite(data.pressao)) compLocalPress.innerText = data.pressao.toFixed(1);
-  if (compLocalAir && Number.isFinite(data.qualidade_ar)) compLocalAir.innerText = Math.round(data.qualidade_ar);
-
-  const regiaoNome = modoComparativo === 'local' ? (currentCoords.bairro || 'sua região') : 'São Paulo';
-  const regiaoRef = modoComparativo === 'local' ? 'da sua região geográfica' : 'de São Paulo (Mirante de Santana)';
-
-  // 1. Delta Temperatura
-  if (Number.isFinite(data.temperatura)) {
-    const deltaT = data.temperatura - dadosOficiaisSP.temp;
-    const badge = document.getElementById('deltaTempBadge');
-    const val = document.getElementById('deltaTempVal');
-    const analysis = document.getElementById('analysisTemp');
-
-    if (badge && val) {
-      badge.classList.remove('delta-hot', 'delta-cold', 'delta-equal');
-      const sinal = deltaT > 0 ? '+' : '';
-      val.innerText = `${sinal}${deltaT.toFixed(1)} °C`;
-
-      if (deltaT > 0.5) {
-        badge.classList.add('delta-hot');
-        if (analysis) analysis.innerText = `Microclima local está ${deltaT.toFixed(1)}°C acima da temperatura oficial ${regiaoRef}. Típico de ambientes internos, proximidade de equipamentos eletrônicos ou retenção térmica de alvenaria.`;
-      } else if (deltaT < -0.5) {
-        badge.classList.add('delta-cold');
-        if (analysis) analysis.innerText = `Ambiente local está ${Math.abs(deltaT).toFixed(1)}°C mais fresco que a referência oficial ${regiaoRef}, evidenciando boa ventilação, sombra ou atuação de climatização.`;
-      } else {
-        badge.classList.add('delta-equal');
-        if (analysis) analysis.innerText = `Temperatura local em perfeito equilíbrio térmico com a medição registrada para ${regiaoNome}.`;
-      }
+  if (data) ultimaLeituraLocal = data;
+  const escrever = (id,texto) => { const el = document.getElementById(id); if (el) el.innerText = texto; };
+  const medidas = [
+    ['temperatura','temp','Temp','compLocalTemp','\u00b0C'],
+    ['umidade','humid','Humid','compLocalHumid','%'],
+    ['pressao','pressSurface','Press','compLocalPress','hPa']
+  ];
+  for (const [campo,referencia,sufixo,local,unidade] of medidas) {
+    escrever(local,formatarNumero(data?.[campo]));
+    const disponivel = estacaoAtual && Number.isFinite(data?.[campo]) && Number.isFinite(dadosOficiaisSP[referencia]);
+    const badge = document.getElementById(`delta${sufixo}Badge`);
+    if (badge) badge.classList.remove('delta-hot','delta-cold','delta-equal');
+    if (!disponivel) {
+      escrever(`delta${sufixo}Val`,'--');
+      escrever(`analysis${sufixo}`,estacaoAtual ? 'Referencia externa indisponivel para comparacao.' : 'Sem medicao atual da estacao. Valores anteriores permanecem no historico.');
+      continue;
     }
+    const delta = data[campo] - dadosOficiaisSP[referencia];
+    escrever(`delta${sufixo}Val`,`${delta>0?'+':''}${formatarNumero(delta)} ${unidade}`);
+    if (badge) badge.classList.add(Math.abs(delta)<0.5 ? 'delta-equal' : delta>0 ? 'delta-hot' : 'delta-cold');
+    escrever(`analysis${sufixo}`,`Diferenca entre a medicao local e a referencia Open-Meteo: ${formatarNumero(delta)} ${unidade}. Fontes e condicoes de medicao sao diferentes.`);
   }
-
-  // 2. Delta Umidade
-  if (Number.isFinite(data.umidade)) {
-    const deltaH = data.umidade - dadosOficiaisSP.humid;
-    const badge = document.getElementById('deltaHumidBadge');
-    const val = document.getElementById('deltaHumidVal');
-    const analysis = document.getElementById('analysisHumid');
-
-    if (badge && val) {
-      badge.classList.remove('delta-hot', 'delta-cold', 'delta-equal');
-      const sinal = deltaH > 0 ? '+' : '';
-      val.innerText = `${sinal}${deltaH.toFixed(1)} %`;
-
-      if (deltaH > 3) {
-        badge.classList.add('delta-cold');
-        if (analysis) analysis.innerText = `Ar do ambiente local apresenta saturação de vapor ${deltaH.toFixed(1)}% maior que a média aberta ${regiaoRef}.`;
-      } else if (deltaH < -3) {
-        badge.classList.add('delta-hot');
-        if (analysis) analysis.innerText = `Ar local está ${Math.abs(deltaH).toFixed(1)}% mais seco que o ar livre ${regiaoRef}. Comum sob uso de ar-condicionado ou aquecimento por componentes.`;
-      } else {
-        badge.classList.add('delta-equal');
-        if (analysis) analysis.innerText = `Taxa de umidade relativa alinhada à média higrométrica oficial registrada para ${regiaoNome}.`;
-      }
-    }
-  }
-
-  // 3. Delta Pressão Atmosférica
-  if (Number.isFinite(data.pressao)) {
-    const deltaP = data.pressao - dadosOficiaisSP.pressMsl;
-    const badge = document.getElementById('deltaPressBadge');
-    const val = document.getElementById('deltaPressVal');
-    const analysis = document.getElementById('analysisPress');
-
-    if (badge && val) {
-      badge.classList.remove('delta-hot', 'delta-cold', 'delta-equal');
-      const sinal = deltaP > 0 ? '+' : '';
-      val.innerText = `${sinal}${deltaP.toFixed(1)} hPa`;
-      badge.classList.add('delta-equal');
-
-      if (analysis) {
-        analysis.innerText = `Pressão aferida pelo BMP280 (${data.pressao.toFixed(1)} hPa) reflete a cota altimétrica onde o sensor opera, em harmonia com o gradiente barométrico calculado para ${regiaoNome}.`;
-      }
-    }
-  }
-
-  const deltaAr = document.getElementById('deltaAirVal');
-  const analiseAr = document.getElementById('analysisAir');
-  if (deltaAr) deltaAr.innerText = '--';
-  if (analiseAr) analiseAr.innerText = 'MQ-135 estimado e indices oficiais nao sao diretamente comparaveis.';
-
+  escrever('compLocalAir',formatarNumero(data?.qualidade_ar,0));
+  escrever('deltaAirVal','Nao comparavel');
+  escrever('analysisAir','MQ-135 fornece estimativa nao seletiva. AQI e concentracoes de poluentes sao apresentados separadamente, nas unidades originais.');
 }
 
-// ------------------------------------------------------------------------------
-// CONFIGURAÇÃO CENTRALIZADA DE EVENTOS E TOUCH PARA DESKTOP E MOBILE
-// ------------------------------------------------------------------------------
 function configurarEventos() {
   // Helper para clique / toque seguro
   const bindAction = (id, callback) => {
@@ -1358,6 +1185,7 @@ function boot() {
 
   // Ciclo periódico de telemetria a cada 2.5 segundos
   setInterval(atualizarDashboard, 2500);
+  setInterval(verificarAtualidade, 1000);
 
   // Ciclo periódico para dados de São Paulo a cada 5 minutos (300.000 ms)
   setInterval(obterDadosOficiaisSaoPaulo, 300000);

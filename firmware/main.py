@@ -48,6 +48,7 @@ except Exception as e:
 # MQ-135 (Sensor de Qualidade do Ar no pino ADC 35)
 adc_mq135 = None
 mq135_r0 = None
+ldr_saturado = False
 
 try:
     adc_mq135 = ADC(Pin(35))
@@ -57,15 +58,19 @@ except Exception as e:
     print("[AVISO] Falha ao inicializar MQ-135:", e)
 
 def ler_luminosidade():
+    global ldr_saturado
+    ldr_saturado = False
     """Calcula iluminancia em Lux com base no LDR na GPIO 34"""
     if not adc_ldr:
         return None
     try:
         raw = adc_ldr.read()
         if raw <= 15:
-            return 3000.0
+            ldr_saturado = True
+            return None  # Extremo do ADC: nao converter em iluminancia fixa.
         v_out = (raw / 4095.0) * 3.3
         if (3.3 - v_out) <= 0.01:
+            ldr_saturado = True
             return None
         r_ldr = 10.0 * v_out / (3.3 - v_out)
         lux = 500.0 * math.pow(r_ldr, -1.4)
@@ -154,6 +159,8 @@ def obter_leituras():
         if valor is not None and ((math.isnan(valor) or math.isinf(valor)) or not faixa[0] <= valor <= faixa[1]):
             valores[campo] = None
     estados = {k: "ok" if v is not None else "indisponivel" for k, v in valores.items()}
+    if ldr_saturado:
+        estados["luminosidade"] = "saturado"
     if adc_mq135 and time.ticks_diff(time.ticks_ms(), INICIO) < config.MQ135_WARMUP_MS:
         estados["qualidade_ar"] = "aquecendo"
     elif adc_mq135 and not config.MQ135_CALIBRATION_ENABLED:

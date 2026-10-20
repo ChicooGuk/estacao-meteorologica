@@ -14,7 +14,7 @@ for (const hostname of ['localhost','127.0.0.1','joy-except-methodology-golden.t
 }
 const elements = new Map();
 const element = id => {
-  if (!elements.has(id)) elements.set(id, {innerText:'--', innerHTML:'', style:{}, classList:{add(){}, remove(){}, toggle(){}}, addEventListener(){}});
+  if (!elements.has(id)) elements.set(id, {innerText:'--', innerHTML:'', style:{}, classList:{values:new Set(),add(...v){v.forEach(x=>this.values.add(x));},remove(...v){v.forEach(x=>this.values.delete(x));},toggle(x,on){if(on)this.values.add(x);else this.values.delete(x);}}, addEventListener(){}});
   return elements.get(id);
 };
 const ctx = vm.createContext({console, AbortController, URL, Date, Math, Number, JSON,
@@ -41,7 +41,7 @@ vm.runInContext("atualizarCoordenadasMapa = (lat,lng,source) => { globalThis.coo
 (async()=>{
   await vm.runInContext('atualizarDashboard()',ctx);
   assert.equal(element('valTemp').innerText,'--');
-  assert.equal(element('stAir').innerText,'Indisponivel');
+  assert.ok(element('stAir').innerText.includes('Sem medicao atual'));
   assert.equal(vm.runInContext('historicoLeituras.length',ctx),2);
   assert.equal(ctx.coords[0],0);
   assert.equal(ctx.coords[2],'Cadastro da estacao');
@@ -59,5 +59,35 @@ vm.runInContext("atualizarCoordenadasMapa = (lat,lng,source) => { globalThis.coo
   await vm.runInContext('atualizarDashboard()',online);
   assert.equal(online.request.options.headers['ngrok-skip-browser-warning'],'1');
   assert.equal(online.request.url,'https://hangup-oblivion-second.ngrok-free.dev/api/leituras/ultimas-24h?id_estacao=1');
+  // Referencias externas nao possuem numeros fabricados, e falha parcial nao mistura consultas.
+  assert.equal(vm.runInContext('dadosOficiaisSP.temp',ctx),null);
+  vm.runInContext('renderizarDadosOficiaisSP()',ctx);
+  assert.equal(element('compSpTemp').innerText,'--');
+  ctx.fetch=async url => ({ok:true,json:async()=>url.includes('air-quality') ?
+    {current:{us_aqi:56,pm2_5:10,pm10:20,carbon_monoxide:200,nitrogen_dioxide:30,time:'2026-10-20T19:00'}} :
+    {current:{temperature_2m:24,relative_humidity_2m:50,surface_pressure:930,pressure_msl:1015,time:'2026-10-20T19:00'},daily:{temperature_2m_min:[18],temperature_2m_max:[28]}}});
+  await vm.runInContext('obterDadosComparativos()',ctx);
+  assert.equal(element('compSpAirIndex').innerText,'56');
+  assert.ok(element('spCo').innerText.includes('200.0'));
+  assert.ok(element('spCo').innerText.includes('g/m'));
+  assert.equal(element('compSpPress').innerText,'930.0','comparacao usa pressao de superficie');
+  assert.equal(vm.runInContext('typeof calcularQualidadeArSpEmPpm',ctx),'undefined');
+  ctx.fetch=async url => {if(url.includes('air-quality'))throw Error('offline');return {ok:true,json:async()=>({current:{temperature_2m:25}})};};
+  await vm.runInContext('obterDadosComparativos()',ctx);
+  assert.equal(element('compSpAirIndex').innerText,'--','nao conserva qualidade do ar antiga');
+  assert.ok(element('spLastUpdate').innerText.includes('indisponivel'));
+  ctx.fetch=async()=>{throw Error('offline');};
+  await vm.runInContext('obterDadosComparativos()',ctx);
+  assert.equal(element('compSpTemp').innerText,'--');
+  // Alertas de amostra antiga nao podem ser apresentados como condicao atual.
+  ctx.fetch=async()=>({ok:true,json:async()=>({...payload,esp32_ativo:false,historico:[{...payload.historico[0],temperatura:40,valores_alerta:{temperatura:40}}]})});
+  await vm.runInContext('atualizarDashboard()',ctx);
+  assert.ok(element('alertBanner').classList.values.has('hidden'));
+  ctx.fetch=async()=>({ok:true,json:async()=>({...payload,esp32_ativo:true,historico:[{...payload.historico[0],data_hora:new Date().toISOString(),temperatura:40,valores_alerta:{temperatura:40}}]})});
+  await vm.runInContext('atualizarDashboard()',ctx);
+  assert.ok(!element('alertBanner').classList.values.has('hidden'));
+  ctx.fetch=async()=>{throw Error('backend offline');};
+  await vm.runInContext('atualizarDashboard()',ctx);
+  assert.ok(element('alertBanner').classList.values.has('hidden'));
   console.log('Dashboard: null, historico persistido, deduplicacao, coordenadas zero e endpoint OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});

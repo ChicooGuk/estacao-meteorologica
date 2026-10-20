@@ -72,7 +72,7 @@
       </button>
       <button class="tab-btn" id="tabBtnComparison" data-target="viewComparison">
         <span class="material-symbols-rounded icon-sm">compare_arrows</span>
-        <span>Comparativo São Paulo (Oficial)</span>
+        <span>Comparativo São Paulo (Open-Meteo)</span>
         <span class="tab-pill-live">Tempo Real</span>
       </button>
     </nav>
@@ -264,8 +264,8 @@
         <div class="location-bar">
           <div class="loc-item">
             <span class="loc-label">Endereço:</span>
-            <strong id="geoSource">Detectando GPS...</strong>
-            <small class="loc-hint">Dica: Você também pode arrastar o pino ou tocar diretamente no mapa em cima da sua casa.</small>
+            <strong id="geoSource">Aguardando cadastro da estação</strong>
+            <small class="loc-hint">Posição definida pelas coordenadas cadastradas da estação.</small>
           </div>
           <div class="loc-coords">
             <span>Lat: <strong id="geoLat">--</strong></span>
@@ -373,7 +373,7 @@
         </div>
         <h1 class="hero-title">Comparação em tempo real<span class="hero-dot">.</span></h1>
         <p class="hero-description">
-          Confronto analítico entre os sensores físicos da estação (DHT22, BMP280, MQ-135) e as medições oficiais consolidadas da rede meteorológica de São Paulo (WMO / Open-Meteo).
+          Leituras dos sensores e dados externos do Open-Meteo para as coordenadas consultadas. As fontes e condições de medição são diferentes.
         </p>
       </section>
 
@@ -383,27 +383,27 @@
           <span class="material-symbols-rounded icon-sm sp-meta-icon" id="compMetaIcon">location_city</span>
           <div>
             <strong id="compMetaLabel">Referência de Comparação:</strong>
-            <span class="sp-meta-station" id="compMetaStation">São Paulo Capital (Mirante de Santana • 758m altitude • WMO 83781)</span>
+            <span class="sp-meta-station" id="compMetaStation">Referência Open-Meteo para São Paulo</span>
           </div>
         </div>
         <div class="sp-meta-right">
           <!-- Seletor Segmentado: SP Capital vs. Minha Região (GPS) -->
           <div class="comp-toggle-group">
-            <button id="btnCompSP" class="btn-comp-mode active" title="Comparar com a estação meteorológica central de São Paulo (Mirante de Santana)">
+            <button id="btnCompSP" class="btn-comp-mode active" title="Consultar referência Open-Meteo para São Paulo">
               <span class="material-symbols-rounded icon-xs">location_city</span>
               SP Capital
             </button>
-            <button id="btnCompLocal" class="btn-comp-mode" title="Comparar com a medição oficial da sua localização exata / bairro via GPS">
+            <button id="btnCompLocal" class="btn-comp-mode" title="Consultar referência para as coordenadas cadastradas da estação">
               <span class="material-symbols-rounded icon-xs">my_location</span>
-              Minha Região (GPS)
+              Região da Estação
             </button>
           </div>
 
           <div class="sp-sync-time">
             <span class="material-symbols-rounded icon-xs">update</span>
-            <span><span id="syncLabelPrefix">Oficial SP</span>: <strong id="spLastUpdate">Sincronizando...</strong></span>
+            <span><span id="syncLabelPrefix">Referência Open-Meteo</span>: <strong id="spLastUpdate">Sincronizando...</strong></span>
           </div>
-          <button id="btnRefreshSP" class="btn-action btn-sm" title="Recarregar dados meteorológicos oficiais">
+          <button id="btnRefreshSP" class="btn-action btn-sm" title="Recarregar referência Open-Meteo">
             <span class="material-symbols-rounded icon-sm">refresh</span>
             <span id="btnRefreshSPLabel">Atualizar SP</span>
           </button>
@@ -449,11 +449,11 @@
               <span class="material-symbols-rounded icon-sm">compare_arrows</span>
             </div>
 
-            <!-- Lado Oficial SP / Região -->
+            <!-- Lado Referência Open-Meteo / Região -->
             <div class="compare-side official-side">
               <div class="side-badge sp-badge">
                 <span class="material-symbols-rounded icon-xs">public</span>
-                <span class="comp-official-badge-text">São Paulo Oficial</span>
+                <span class="comp-official-badge-text">Referência Open-Meteo</span>
               </div>
               <div class="side-value-group">
                 <span class="side-value" id="compSpTemp">--</span>
@@ -516,16 +516,16 @@
             <div class="compare-side official-side">
               <div class="side-badge sp-badge">
                 <span class="material-symbols-rounded icon-xs">public</span>
-                <span class="comp-official-badge-text">São Paulo Oficial</span>
+                <span class="comp-official-badge-text">Referência Open-Meteo</span>
               </div>
               <div class="side-value-group">
                 <span class="side-value" id="compSpHumid">--</span>
                 <span class="side-unit">%</span>
               </div>
               <div class="sp-apparent-row">
-                Média oficial da Região Metropolitana
+                Referência para as coordenadas consultadas
               </div>
-              <span class="side-sensor-hint">Estação Meteorológica Automática (INMET/WMO)</span>
+              <span class="side-sensor-hint">Fonte externa: Open-Meteo</span>
             </div>
           </div>
 
@@ -572,7 +572,7 @@
             <div class="compare-side official-side">
               <div class="side-badge sp-badge">
                 <span class="material-symbols-rounded icon-xs">public</span>
-                <span class="comp-official-badge-text">São Paulo Oficial</span>
+                <span class="comp-official-badge-text">Referência Open-Meteo</span>
               </div>
               <div class="side-value-group">
                 <span class="side-value" id="compSpPress">--</span>
@@ -581,7 +581,7 @@
               <div class="sp-apparent-row">
                 Nível do Mar (MSL): <strong id="spPressMsl">-- hPa</strong>
               </div>
-              <span class="side-sensor-hint">Superfície Planalto (760m): <strong id="spPressSurface">-- hPa</strong></span>
+              <span class="side-sensor-hint">Pressão de superfície na referência: <strong id="spPressSurface">-- hPa</strong></span>
             </div>
           </div>
 
@@ -599,12 +599,12 @@
               </div>
               <div>
                 <h3 class="compare-card-title">Qualidade do Ar & Emissões</h3>
-                <span class="compare-card-sub">Gases Voláteis (PPM) vs. Cálculo Atmosférico SP (PPM)</span>
+                <span class="compare-card-sub">Estimativa MQ-135 e referência de poluentes em unidades distintas</span>
               </div>
             </div>
             <div class="delta-badge" id="deltaAirBadge">
-              <span class="delta-label">Diferença em PPM</span>
-              <strong id="deltaAirVal">-- PPM</strong>
+              <span class="delta-label">Comparabilidade</span>
+              <strong id="deltaAirVal">Não comparável</strong>
             </div>
           </div>
 
@@ -618,7 +618,7 @@
                 <span class="side-value" id="compLocalAir">--</span>
                 <span class="side-unit">PPM</span>
               </div>
-              <span class="side-sensor-hint">Sensor MQ-135 (NH₃, NOₓ, Álcool, CO₂)</span>
+              <span class="side-sensor-hint">MQ-135: estimativa dependente de circuito e calibração</span>
             </div>
 
             <div class="compare-divider">
@@ -628,13 +628,13 @@
             <div class="compare-side official-side">
               <div class="side-badge sp-badge">
                 <span class="material-symbols-rounded icon-xs">public</span>
-                <span class="comp-official-badge-text">São Paulo Oficial (Cálculo em PPM)</span>
+                <span class="comp-official-badge-text">Referência Open-Meteo</span>
               </div>
               <div class="side-value-group">
-                <span class="side-value" id="compSpAirPpm">--</span>
-                <span class="side-unit">PPM</span>
+                <span class="side-value" id="compSpAirIndex">--</span>
+                <span class="side-unit">AQI (US)</span>
               </div>
-              <span class="side-sensor-hint" id="compSpAirFormulaHint">Cálculo: Base CO₂ 415 + AQI & Gases</span>
+              <span class="side-sensor-hint" id="compSpAirFormulaHint">AQI (US) e concentrações individuais</span>
               <div class="sp-pollutants-grid">
                 <div class="sp-pollutant-item">
                   <span class="sp-pol-name">AQI:</span>
@@ -672,7 +672,7 @@
         <div class="panel-card-header">
           <span class="panel-tag">
             <span class="material-symbols-rounded icon-xs">wb_cloudy</span>
-            Rede Meteorológica Municipal
+            Referência externa Open-Meteo
           </span>
           <h2 id="spOverviewTitle">Panorama Climático de São Paulo</h2>
           <p id="spOverviewSubtitle">Condições atmosféricas gerais aferidas para a metrópole</p>
@@ -694,9 +694,9 @@
               <span class="material-symbols-rounded">water_drop</span>
             </div>
             <div class="sp-cond-info">
-              <span class="sp-cond-label">Precipitação Acumulada</span>
+              <span class="sp-cond-label">Precipitação de referência</span>
               <strong class="sp-cond-val" id="spPrecipitation">-- mm</strong>
-              <small class="sp-cond-sub">Chuva registrada hoje na capital</small>
+              <small class="sp-cond-sub">Dado externo do intervalo consultado; não medido pelo ESP32</small>
             </div>
           </div>
 
@@ -716,9 +716,9 @@
               <span class="material-symbols-rounded">landscape</span>
             </div>
             <div class="sp-cond-info">
-              <span class="sp-cond-label">Altitude Barométrica</span>
-              <strong class="sp-cond-val">758 metros</strong>
-              <small class="sp-cond-sub">Planalto de Piratininga</small>
+              <span class="sp-cond-label">Elevação da referência</span>
+              <strong class="sp-cond-val" id="spElevation">-- m</strong>
+              <small class="sp-cond-sub">Elevação retornada pelo Open-Meteo</small>
             </div>
           </div>
         </div>
@@ -732,7 +732,7 @@
         </div>
         <h3 class="science-title">Entendendo a Diferença entre Microclima Local e Estação Central</h3>
         <p class="science-intro">
-          No projeto da estação meteorológica com ESP32, divergências pontuais entre o sensor local e os registros oficiais da metrópole evidenciam a física do <strong>Microclima Urbano</strong>:
+          Diferenças entre os sensores e a referência Open-Meteo podem resultar de microclima, altitude, instalação ou calibração. Uma comparação isolada não identifica a causa:
         </p>
         <div class="science-reasons-grid">
           <div class="science-reason-card">
@@ -741,7 +741,7 @@
               <strong>Efeito Ilha de Calor & Confinamento</strong>
             </div>
             <p>
-              Ambientes construídos, alvenaria e asfalto retêm calor por inércia térmica, criando diferenças térmicas de 2°C a 4°C em relação aos parques abertos onde operam as estações oficiais (como Mirante de Santana e IAG-USP).
+              Materiais, sombra, ventilação e proximidade de equipamentos podem influenciar a temperatura local. A referência externa representa condições para uma área e pode diferir do local do sensor.
             </p>
           </div>
 
@@ -751,7 +751,7 @@
               <strong>Ventilação e Gradiente de Umidade</strong>
             </div>
             <p>
-              Ambientes internos ou sob marquises acumulam vapor de água e gases detectados pelo sensor MQ-135, enquanto a estação oficial mede a dispersão em campo aberto sob ventos livres.
+              A instalação influencia as leituras de umidade e gases. O MQ-135 não identifica seletivamente cada poluente; seus valores dependem do circuito, aquecimento e calibração.
             </p>
           </div>
 
@@ -768,7 +768,7 @@
           <div class="science-reason-card">
             <div class="reason-header">
               <span class="material-symbols-rounded reason-icon">nest_eco_leaf</span>
-              <strong>Cálculo & Conversão de Ar em PPM</strong>
+              <strong>Qualidade do ar e limites da comparação</strong>
             </div>
             <p>
               O MQ-135 fornece uma estimativa dependente do circuito, aquecimento e calibração.
@@ -794,7 +794,7 @@
   </div>
 
   <!-- Lógica Principal do Dashboard -->
-  <script src="config.js?v=2"></script>
-  <script src="app.js?v=3.2"></script>
+  <script src="config.js?v=3"></script>
+  <script src="app.js?v=3.3"></script>
 </body>
 </html>
