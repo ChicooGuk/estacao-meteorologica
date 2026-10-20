@@ -41,6 +41,34 @@ class ValidationTests(unittest.TestCase):
         values, _ = api.filtrar(d, [BASE]*2 + [BASE | {"temperatura": 50}]*3)
         self.assertEqual(values["temperatura"], 50)
 
+    def test_moving_average_uses_raw_valid_window_and_preserves_peaks(self):
+        current = {k: BASE[k] for k in api.FIELDS}
+        records = [{"payload": BASE | {"temperatura": t}, "qualidade": {}} for t in (22,20,18,16,0)]
+        records[1]["qualidade"] = {"temperatura": "outlier_temporal"}
+        result = api.media_movel(current | {"qualidade_ar": 2000}, records)
+        self.assertEqual(result["temperatura"],20)
+        self.assertEqual(result["qualidade_ar"],2000)
+        self.assertEqual(result["luminosidade"],60)
+        self.assertIsNone(api.media_movel(current | {"temperatura":None}, records)["temperatura"])
+        self.assertEqual(api.media_movel(current, [])["temperatura"],24)
+
+    def test_ngrok_preflight_allows_firebase_but_not_unknown_origin(self):
+        from fastapi.testclient import TestClient
+        headers = {"Origin":"https://estacao-metedologica.web.app",
+                   "Access-Control-Request-Method":"GET",
+                   "Access-Control-Request-Headers":"ngrok-skip-browser-warning"}
+        middleware = next(m for m in api.app.user_middleware if m.cls.__name__ == "CORSMiddleware")
+        from fastapi import FastAPI
+        app = FastAPI()
+        app.add_middleware(middleware.cls, **(middleware.kwargs | {"allow_origins":[headers["Origin"]]}))
+        client = TestClient(app)
+        result = client.options("/api/leituras/ultimas-24h", headers=headers)
+        self.assertEqual(result.status_code,200)
+        self.assertEqual(result.headers["access-control-allow-origin"],headers["Origin"])
+        self.assertIn("ngrok-skip-browser-warning",result.headers["access-control-allow-headers"])
+        result = client.options("/api/leituras/ultimas-24h", headers=headers | {"Origin":"https://example.invalid"})
+        self.assertEqual(result.status_code,400)
+
     def test_persistence_and_duplicate(self):
         pool, conn, cur = MagicMock(), MagicMock(), MagicMock()
         pool.get_connection.return_value = conn

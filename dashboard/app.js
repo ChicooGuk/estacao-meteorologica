@@ -591,7 +591,10 @@ async function atualizarDashboard() {
   try {
 
 
-    const response = await fetch(API_URL, { signal: controller.signal });
+    const destino = new URL(API_URL, window.location.href);
+    const headers = /\.(ngrok-free\.dev|ngrok-free\.app)$/.test(destino.hostname)
+      ? { 'ngrok-skip-browser-warning': '1' } : {};
+    const response = await fetch(API_URL, { signal: controller.signal, headers });
 
 
     if (!response.ok) {
@@ -749,7 +752,7 @@ function renderizarDados(data, isMock) {
 
 
   // 5. Verifica Alertas
-  verificarAlertas(data);
+  verificarAlertas(data.valores_alerta || data);
 
   // 6. Atualiza o Módulo Comparativo com São Paulo
   atualizarComparativoLadoALado(data);

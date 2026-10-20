@@ -1,4 +1,4 @@
-// Endereco temporario do backend no notebook. Atualize se o tunel mudar.
+// Dominio de desenvolvimento atribuido a conta ngrok do projeto.
 // Localmente, a API continua sendo acessada na mesma origem do dashboard.
 (() => {
   const hostsFirebase = [
@@ -6,6 +6,6 @@
     'estacao-metedologica.firebaseapp.com'
   ];
   if (hostsFirebase.includes(window.location.hostname)) {
-    window.ESTACAO_API_BASE = 'https://joy-except-methodology-golden.trycloudflare.com';
+    window.ESTACAO_API_BASE = 'https://hangup-oblivion-second.ngrok-free.dev';
   }
 })();

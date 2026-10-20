@@ -18,6 +18,12 @@ from pydantic import BaseModel, Field, ConfigDict, ValidationError
 from pathlib import Path
 
 log = logging.getLogger("estacao")
+if not log.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s [ESTACAO] %(message)s"))
+    log.addHandler(handler)
+log.setLevel(logging.INFO)
+log.propagate = False
 pool = None
 reiniciar_mqtt = Event()
 FIELDS = ("temperatura", "umidade", "pressao", "qualidade_ar", "luminosidade")
@@ -57,6 +63,26 @@ def filtrar(dados, anteriores):
     return valores, flags
 
 
+def media_movel(valores, anteriores):
+    """Media de ate 5 amostras validas, sem preencher falhas com dados antigos.
+
+    Suaviza temperatura, umidade e pressao. Ar e luminosidade conservam picos.
+    Os registros anteriores estao ordenados do mais recente ao mais antigo.
+    Usar payload original evita calcular uma media de medias recursiva.
+    """
+    saida = valores.copy()
+    for campo in ("temperatura", "umidade", "pressao"):
+        if valores[campo] is None:
+            continue
+        janela = [valores[campo]]
+        for registro in anteriores[:4]:
+            valor = registro["payload"].get(campo)
+            if isinstance(valor, (int, float)) and not registro["qualidade"].get(campo):
+                janela.append(valor)
+        saida[campo] = round(sum(janela) / len(janela), 2)
+    return saida
+
+
 @contextmanager
 def conexao():
     if pool is None:
@@ -87,9 +113,17 @@ def persistir(dados):
             anterior = cur.fetchone()
             if anterior and dados.sequencia <= anterior["sequencia"]:
                 raise ValueError("Sequencia fora de ordem")
-            cur.execute("SELECT payload FROM leitura WHERE id_estacao=%s AND data_hora >= UTC_TIMESTAMP() - INTERVAL 30 SECOND ORDER BY id_leitura DESC LIMIT 5", (dados.id_estacao,))
-            anteriores = [json.loads(r["payload"]) if isinstance(r["payload"], str) else r["payload"] for r in cur.fetchall() if r["payload"]]
-            valores, flags = filtrar(dados, anteriores)
+            cur.execute("SELECT payload, qualidade FROM leitura WHERE id_estacao=%s AND boot_id=%s AND data_hora >= UTC_TIMESTAMP() - INTERVAL 30 SECOND ORDER BY id_leitura DESC LIMIT 5", (dados.id_estacao, dados.boot_id))
+            anteriores = []
+            for r in cur.fetchall():
+                if not r["payload"]:
+                    continue
+                anteriores.append({
+                    "payload": json.loads(r["payload"]) if isinstance(r["payload"], str) else r["payload"],
+                    "qualidade": (json.loads(r["qualidade"]) if isinstance(r["qualidade"], str) else r["qualidade"]) or {}
+                })
+            valores, flags = filtrar(dados, [r["payload"] for r in anteriores])
+            valores = media_movel(valores, anteriores)
             cur.execute("""INSERT INTO leitura
                 (id_estacao, temperatura, umidade, pressao, qualidade_ar, luminosidade,
                  boot_id, sequencia, payload, qualidade, data_hora)
@@ -109,7 +143,11 @@ def persistir(dados):
 
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code == 0:
-        client.subscribe("estacoes/+/telemetria", qos=1)
+        result, _ = client.subscribe("estacoes/+/telemetria", qos=1)
+        if result != mqtt.MQTT_ERR_SUCCESS:
+            log.error("Falha ao solicitar assinatura MQTT: %s", result)
+        else:
+            log.info("MQTT conectado; assinatura solicitada: estacoes/+/telemetria")
     else:
         log.error("MQTT conexao recusada: %s", reason_code)
 
@@ -125,6 +163,7 @@ def on_message(client, userdata, message):
         dados = TelemetriaSchema.model_validate_json(message.payload)
         if message.topic != f"estacoes/{dados.id_estacao}/telemetria":
             raise ValueError("Topico diverge da estacao")
+        log.info("MQTT recebido estacao=%s seq=%s", dados.id_estacao, dados.sequencia)
         persistir(dados)
         client.ack(message.mid, message.qos)
     except (ValidationError, ValueError) as exc:
@@ -190,7 +229,8 @@ async def lifespan(app):
 app = FastAPI(title="Estacao Meteorologica", lifespan=lifespan)
 app.add_middleware(CORSMiddleware,
     allow_origins=[s for s in os.getenv("CORS_ORIGINS", "http://localhost:5500").split(",") if s],
-    allow_methods=["GET", "POST"], allow_headers=["Content-Type"])
+    allow_methods=["GET", "POST"], allow_headers=["Content-Type", "ngrok-skip-browser-warning"],
+    max_age=3600)
 
 
 @app.post("/api/leituras", status_code=201)
@@ -227,6 +267,11 @@ def obter_ultimas_leituras(id_estacao: int = Query(default=1, gt=0)):
                     r["origem_temperatura"] = meta.get("origem_temperatura")
                     if isinstance(r["qualidade"], str):
                         r["qualidade"] = json.loads(r["qualidade"])
+                    # Alertas usam a amostra valida original, sem atenuacao da media.
+                    r["valores_alerta"] = {
+                        k: None if (r["qualidade"] or {}).get(k) else meta.get(k, r[k])
+                        for k in FIELDS
+                    }
                     r["data_hora"] = r["data_hora"].isoformat() + "Z"
                 cur.execute("""SELECT MAX(temperatura) temp_max, MIN(temperatura) temp_min,
                     AVG(umidade) umid_media, MAX(qualidade_ar) air_max, AVG(pressao) press_media

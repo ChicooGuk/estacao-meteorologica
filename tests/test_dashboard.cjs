@@ -5,7 +5,7 @@ const configSource = fs.readFileSync(require('path').join(__dirname,'../dashboar
 for (const hostname of ['estacao-metedologica.web.app','estacao-metedologica.firebaseapp.com']) {
   const configContext = {window:{location:{hostname}}};
   vm.runInNewContext(configSource, configContext);
-  assert.equal(configContext.window.ESTACAO_API_BASE,'https://joy-except-methodology-golden.trycloudflare.com');
+  assert.equal(configContext.window.ESTACAO_API_BASE,'https://hangup-oblivion-second.ngrok-free.dev');
 }
 for (const hostname of ['localhost','127.0.0.1','joy-except-methodology-golden.trycloudflare.com']) {
   const configContext = {window:{location:{hostname}}};
@@ -17,8 +17,8 @@ const element = id => {
   if (!elements.has(id)) elements.set(id, {innerText:'--', innerHTML:'', style:{}, classList:{add(){}, remove(){}, toggle(){}}, addEventListener(){}});
   return elements.get(id);
 };
-const ctx = vm.createContext({console, AbortController, Date, Math, Number, JSON,
-  setTimeout, clearTimeout, setInterval(){}, window:{location:{protocol:'http:',hostname:'localhost'}},
+const ctx = vm.createContext({console, AbortController, URL, Date, Math, Number, JSON,
+  setTimeout, clearTimeout, setInterval(){}, window:{location:{protocol:'http:',hostname:'localhost',href:'http://localhost:8000/'}},
   document:{readyState:'loading', addEventListener(){}, getElementById:element, querySelectorAll:()=>[]},
   localStorage:{getItem:()=>null,setItem(){},removeItem(){}}, navigator:{},
 });
@@ -36,7 +36,7 @@ const payload = {estacao:{latitude:0,longitude:0},esp32_ativo:false,estatisticas
   {id_leitura:2,data_hora:'2026-10-20T12:00:02Z',temperatura:null,umidade:null,pressao:null,qualidade_ar:null,luminosidade:null},
   {id_leitura:1,data_hora:'2026-10-20T12:00:00Z',temperatura:24,umidade:50,pressao:930,qualidade_ar:null,luminosidade:60}
 ]};
-ctx.fetch=async()=>({ok:true,json:async()=>payload});
+ctx.fetch=async(url,options)=>{ctx.lastFetchOptions=options; return {ok:true,json:async()=>payload};};
 vm.runInContext("atualizarCoordenadasMapa = (lat,lng,source) => { globalThis.coords = [lat,lng,source]; };",ctx);
 (async()=>{
   await vm.runInContext('atualizarDashboard()',ctx);
@@ -51,5 +51,13 @@ vm.runInContext("atualizarCoordenadasMapa = (lat,lng,source) => { globalThis.coo
   assert.equal(vm.runInContext('historicoLeituras.length',ctx),2,'polling nao duplica historico');
   assert.ok(element('historyTableBody').innerHTML.includes('--'));
   assert.equal(vm.runInContext('API_URL',ctx),'/api/leituras/ultimas-24h?id_estacao=1');
+  assert.equal(ctx.lastFetchOptions.headers['ngrok-skip-browser-warning'],undefined);
+  const online = vm.createContext({...ctx, window:{location:{hostname:'estacao-metedologica.web.app',href:'https://estacao-metedologica.web.app/'}}});
+  vm.runInContext(configSource, online);
+  vm.runInContext(fs.readFileSync(require('path').join(__dirname,'../dashboard/app.js'),'utf8'),online);
+  online.fetch=async(url,options)=>{ online.request={url,options}; return {ok:true,json:async()=>payload}; };
+  await vm.runInContext('atualizarDashboard()',online);
+  assert.equal(online.request.options.headers['ngrok-skip-browser-warning'],'1');
+  assert.equal(online.request.url,'https://hangup-oblivion-second.ngrok-free.dev/api/leituras/ultimas-24h?id_estacao=1');
   console.log('Dashboard: null, historico persistido, deduplicacao, coordenadas zero e endpoint OK');
 })().catch(e=>{console.error(e);process.exitCode=1;});

@@ -176,6 +176,7 @@ async def adquirir():
             sequencia += 1
             dados["sequencia"] = sequencia
             ultima_amostra = dados
+            print("[AQUISICAO JSON]", json.dumps(dados))
         except Exception as exc:
             print("[AQUISICAO]", exc)
         decorrido = time.ticks_diff(time.ticks_ms(), inicio)
@@ -185,9 +186,17 @@ async def adquirir():
 async def monitor_wifi():
     wlan = network.WLAN(network.STA_IF)
     wlan.active(True)
+    conectado = False
     while True:
-        if not wlan.isconnected():
+        estado = wlan.isconnected()
+        if estado and not conectado:
+            print("[WIFI] Conectado. IP:", wlan.ifconfig()[0])
+        elif conectado and not estado:
+            print("[WIFI] Conexao perdida")
+        conectado = estado
+        if not estado:
             try:
+                print("[WIFI] Tentando conexao")
                 wlan.connect(config.WIFI_SSID, config.WIFI_PASS)
             except OSError as exc:
                 print("[WIFI]", exc)
@@ -206,12 +215,14 @@ async def publicar():
                 raise OSError("Wi-Fi indisponivel")
             if cliente.writer is None:
                 await cliente.connect()
+                print("[MQTT] Conectado ao broker")
             amostra = ultima_amostra
             # Latest-request-wins: sem fila ilimitada durante indisponibilidade.
             if amostra is not None and amostra["sequencia"] != enviada:
                 await cliente.publish("estacoes/%s/telemetria" % config.STATION_ID,
                                       json.dumps(amostra))
                 enviada = amostra["sequencia"]
+                print("[MQTT] Publicacao confirmada pelo broker. Sequencia:", enviada)
             atraso = 1
             await asyncio.sleep_ms(100)
         except Exception as exc:
