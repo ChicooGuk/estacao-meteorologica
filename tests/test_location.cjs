@@ -1,7 +1,7 @@
 const fs = require('fs'), vm = require('vm'), assert = require('assert/strict');
 const els = new Map();
-const el = id => {if (!els.has(id)) els.set(id, {value:'',innerText:'',hidden:false,disabled:false});return els.get(id);};
-const ctx = vm.createContext({console, AbortController, setTimeout, clearTimeout, setInterval(){}, window:{ESTACAO_API_BASE:'https://example.ngrok-free.dev'}, document:{readyState:'loading',getElementById:el,addEventListener(){}}, localStorage:{getItem(){return null;}}});
+const el = id => {if (!els.has(id)) els.set(id, {value:'',innerText:'',hidden:false,disabled:false,style:{},classList:{toggle(){},add(){},remove(){}}});return els.get(id);};
+const ctx = vm.createContext({console, AbortController, setTimeout, clearTimeout, setInterval(){}, window:{ESTACAO_API_BASE:'https://example.ngrok-free.dev'}, document:{readyState:'loading',getElementById:el,addEventListener(){},querySelectorAll(){return [];}}, localStorage:{getItem(){return null;}}});
 vm.runInContext(fs.readFileSync(require('path').join(__dirname,'../dashboard/app.js'),'utf8'),ctx);
 vm.runInContext(`map={setView(){}};stationMarker={point:{lat:1,lng:2},setLatLng(p){this.point={lat:p[0],lng:p[1]};return this;},getLatLng(){return this.point;},setOpacity(){return this;},dragging:{enable(){},disable(){}}};ultimaLocalizacaoSalva={lat:1,lng:2};`,ctx);
 (async()=>{

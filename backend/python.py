@@ -7,8 +7,7 @@ import secrets
 import hashlib
 from threading import Event
 from contextlib import asynccontextmanager, contextmanager
-from datetime import datetime
-from statistics import median
+from datetime import datetime, timezone
 
 import mysql.connector
 from mysql.connector.pooling import MySQLConnectionPool
@@ -16,8 +15,10 @@ import paho.mqtt.client as mqtt
 from fastapi import FastAPI, HTTPException, Query, Header, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field, ConfigDict, ValidationError
+from pydantic import BaseModel, Field, ConfigDict, ValidationError, model_validator
 from pathlib import Path
+
+from filtros import FIELDS, JUMPS, filtrar, referencias_validas, media_movel
 
 log = logging.getLogger("estacao")
 if not log.handlers:
@@ -28,11 +29,6 @@ log.setLevel(logging.INFO)
 log.propagate = False
 pool = None
 reiniciar_mqtt = Event()
-FIELDS = ("temperatura", "umidade", "pressao", "qualidade_ar", "luminosidade")
-# Limiares demonstrativos, nas unidades dos campos; conferir em bancada.
-JUMPS = {"temperatura": 10, "umidade": 25, "pressao": 20,
-         "qualidade_ar": 1500, "luminosidade": 10000}
-
 
 class TelemetriaSchema(BaseModel):
     model_config = ConfigDict(allow_inf_nan=False, extra="forbid")
@@ -40,6 +36,14 @@ class TelemetriaSchema(BaseModel):
     boot_id: str = Field(min_length=1, max_length=32, pattern=r"^[a-zA-Z0-9_-]+$")
     sequencia: int = Field(ge=1)
     uptime_ms: int = Field(ge=0)
+    coletado_em: float | None = Field(default=None, ge=1700000000, le=5000000000)
+    amostras_descartadas: int = Field(default=0, ge=0)
+    atraso_envio_ms: int = Field(default=0, ge=0)
+    adc_bruto: dict[str, float | None] = Field(default_factory=dict, max_length=2)
+    mq135_tensao_adc_v: float | None = Field(default=None, ge=0, le=3.6)
+    mq135_aquecimento_restante_ms: int | None = Field(default=None, ge=0, le=86400000)
+    mq135_modo_teste: bool = False
+    mq135_ppm_simulado: float | None = Field(default=None, ge=0, le=10000)
     temperatura: float | None = Field(ge=-40, le=80)
     umidade: float | None = Field(ge=0, le=100)
     pressao: float | None = Field(ge=300, le=1200)
@@ -49,40 +53,13 @@ class TelemetriaSchema(BaseModel):
     estado_sensores: dict[str, str] = Field(default_factory=dict, max_length=5)
 
 
-def filtrar(dados, anteriores):
-    valores = {k: getattr(dados, k) for k in FIELDS}
-    flags = {}
-    for k in FIELDS:
-        janela = [r[k] for r in anteriores if isinstance(r.get(k), (int, float))]
-        if valores[k] is None:
-            flags[k] = "indisponivel"
-        elif len(janela) >= 3:
-            centro = median(janela)
-            mad = median([abs(v - centro) for v in janela])
-            if abs(valores[k] - centro) > max(JUMPS[k], 6 * mad):
-                valores[k] = None
-                flags[k] = "outlier_temporal"
-    return valores, flags
-
-
-def media_movel(valores, anteriores):
-    """Media de ate 5 amostras validas, sem preencher falhas com dados antigos.
-
-    Suaviza temperatura, umidade e pressao. Ar e luminosidade conservam picos.
-    Os registros anteriores estao ordenados do mais recente ao mais antigo.
-    Usar payload original evita calcular uma media de medias recursiva.
-    """
-    saida = valores.copy()
-    for campo in ("temperatura", "umidade", "pressao"):
-        if valores[campo] is None:
-            continue
-        janela = [valores[campo]]
-        for registro in anteriores[:4]:
-            valor = registro["payload"].get(campo)
-            if isinstance(valor, (int, float)) and not registro["qualidade"].get(campo):
-                janela.append(valor)
-        saida[campo] = round(sum(janela) / len(janela), 2)
-    return saida
+    @model_validator(mode="after")
+    def separar_simulacao(self):
+        if self.mq135_modo_teste and self.qualidade_ar is not None:
+            raise ValueError("Simulacao nao pode preencher concentracao de telemetria")
+        if self.mq135_ppm_simulado is not None and not self.mq135_modo_teste:
+            raise ValueError("PPM simulado exige modo de teste")
+        return self
 
 
 @contextmanager
@@ -156,7 +133,11 @@ def persistir(dados):
             anterior = cur.fetchone()
             if anterior and dados.sequencia <= anterior["sequencia"]:
                 raise ValueError("Sequencia fora de ordem")
-            cur.execute("SELECT payload, qualidade FROM leitura WHERE id_estacao=%s AND boot_id=%s AND data_hora >= UTC_TIMESTAMP() - INTERVAL 30 SECOND ORDER BY id_leitura DESC LIMIT 5", (dados.id_estacao, dados.boot_id))
+            coleta = dados.coletado_em if dados.coletado_em is not None else time.time() - dados.atraso_envio_ms / 1000
+            idade = time.time() - coleta
+            if idade < -10:
+                raise ValueError("Horario da coleta esta no futuro")
+            cur.execute("SELECT payload, qualidade FROM leitura WHERE id_estacao=%s AND boot_id=%s AND data_hora >= FROM_UNIXTIME(%s) - INTERVAL 30 SECOND AND data_hora <= FROM_UNIXTIME(%s) ORDER BY data_hora DESC, id_leitura DESC LIMIT 5", (dados.id_estacao, dados.boot_id, coleta, coleta))
             anteriores = []
             for r in cur.fetchall():
                 if not r["payload"]:
@@ -165,14 +146,16 @@ def persistir(dados):
                     "payload": json.loads(r["payload"]) if isinstance(r["payload"], str) else r["payload"],
                     "qualidade": (json.loads(r["qualidade"]) if isinstance(r["qualidade"], str) else r["qualidade"]) or {}
                 })
-            valores, flags = filtrar(dados, [r["payload"] for r in anteriores])
+            valores, flags = filtrar(dados, referencias_validas(anteriores))
+            if idade > 10:
+                flags["telemetria"] = "atrasada"
             valores = media_movel(valores, anteriores)
             cur.execute("""INSERT INTO leitura
                 (id_estacao, temperatura, umidade, pressao, qualidade_ar, luminosidade,
                  boot_id, sequencia, payload, qualidade, data_hora)
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,UTC_TIMESTAMP())""",
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,FROM_UNIXTIME(%s))""",
                 (dados.id_estacao, *(valores[k] for k in FIELDS), dados.boot_id,
-                 dados.sequencia, dados.model_dump_json(), json.dumps(flags)))
+                 dados.sequencia, dados.model_dump_json(), json.dumps(flags), coleta))
             conn.commit()
             log.info("Telemetria persistida estacao=%s seq=%s duracao_ms=%.1f filtros=%s",
                      dados.id_estacao, dados.sequencia, (time.monotonic()-inicio)*1000, flags)
@@ -367,14 +350,21 @@ def obter_ultimas_leituras(id_estacao: int = Query(default=1, gt=0)):
                 cur.execute("""SELECT id_leitura, temperatura, umidade, pressao, qualidade_ar,
                     luminosidade, data_hora, qualidade, payload FROM leitura
                     WHERE id_estacao=%s AND data_hora >= UTC_TIMESTAMP() - INTERVAL 1 DAY
-                    ORDER BY id_leitura DESC LIMIT 50""", (id_estacao,))
+                    ORDER BY data_hora DESC, id_leitura DESC LIMIT 50""", (id_estacao,))
                 historico = cur.fetchall()
                 for r in historico:
                     meta = r.pop("payload") or {}
                     if isinstance(meta, str):
                         meta = json.loads(meta)
                     r["estado_sensores"] = meta.get("estado_sensores", {})
+                    r["adc_bruto"] = meta.get("adc_bruto", {})
+                    r["mq135_tensao_adc_v"] = meta.get("mq135_tensao_adc_v")
+                    r["mq135_aquecimento_restante_ms"] = meta.get("mq135_aquecimento_restante_ms")
+                    r["mq135_modo_teste"] = meta.get("mq135_modo_teste", False)
+                    r["mq135_ppm_simulado"] = meta.get("mq135_ppm_simulado")
                     r["origem_temperatura"] = meta.get("origem_temperatura")
+                    r["coletado_em"] = meta.get("coletado_em")
+                    r["amostras_descartadas"] = meta.get("amostras_descartadas", 0)
                     if isinstance(r["qualidade"], str):
                         r["qualidade"] = json.loads(r["qualidade"])
                     # Alertas usam a amostra valida original, sem atenuacao da media.
@@ -387,9 +377,24 @@ def obter_ultimas_leituras(id_estacao: int = Query(default=1, gt=0)):
                     AVG(umidade) umid_media, MAX(qualidade_ar) air_max, AVG(pressao) press_media
                     FROM leitura WHERE id_estacao=%s AND data_hora >= UTC_TIMESTAMP() - INTERVAL 1 DAY""", (id_estacao,))
                 stats = cur.fetchone()
-                ativo = bool(historico and (datetime.now().timestamp() - datetime.fromisoformat(historico[0]["data_hora"]).timestamp()) <= 10)
+                cur.execute("""SELECT FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(data_hora)/300)*300) data_hora,
+                    AVG(temperatura) temperatura, AVG(umidade) umidade, AVG(pressao) pressao,
+                    AVG(qualidade_ar) qualidade_ar, AVG(luminosidade) luminosidade,
+                    COUNT(*) amostras FROM leitura WHERE id_estacao=%s
+                    AND data_hora >= UTC_TIMESTAMP() - INTERVAL 1 DAY
+                    GROUP BY FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(data_hora)/300)*300)
+                    ORDER BY 1""", (id_estacao,))
+                grafico = cur.fetchall()
+                for r in grafico:
+                    r["data_hora"] = r["data_hora"].isoformat() + "Z"
+                agora = time.time()
+                ativo = bool(historico and -10 <= agora - datetime.fromisoformat(historico[0]["data_hora"]).timestamp() <= 10)
+                if ativo and historico[0]["coletado_em"] is not None:
+                    ativo = -10 <= agora - historico[0]["coletado_em"] <= 10
                 return {"estacao": estacao, "esp32_ativo": ativo,
-                        "historico": historico, "estatisticas_24h": stats}
+                        "historico": historico, "historico_24h": grafico,
+                        "historico_limite": 50, "intervalo_grafico_segundos": 300,
+                        "estatisticas_24h": stats}
             finally:
                 cur.close()
     except HTTPException:

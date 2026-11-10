@@ -1,0 +1,12 @@
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const els=new Map();const element=id=>{if(!els.has(id))els.set(id,{innerText:'',dataset:{},classList:{toggle(){},add(){},remove(){}}});return els.get(id)};
+const ctx=vm.createContext({console,URL,AbortController,setTimeout,clearTimeout,setInterval(){},window:{location:{hostname:'localhost'}},document:{readyState:'loading',addEventListener(){},getElementById:element,querySelectorAll(){return []}},localStorage:{getItem(){return null}}});
+vm.runInContext(fs.readFileSync('dashboard/app.js','utf8'),ctx);
+const run=s=>vm.runInContext(s,ctx);
+assert.equal(run('geometriaEntrePontos({lat:0,lng:0},{lat:0,lng:0}).distancia'),0);
+assert.ok(Math.abs(run('geometriaEntrePontos({lat:0,lng:0},{lat:0,lng:1}).distancia')-111195)<2);
+assert.ok(run('geometriaEntrePontos({lat:0,lng:179.9},{lat:0,lng:-179.9}).distancia')<23000);
+assert.equal(run('geometriaEntrePontos({lat:100,lng:0},{lat:0,lng:0})'),null);
+run("verificarAlertas({qualidade_ar:null},{},{qualidade_ar:'acima_faixa'},false)");
+assert.match(element('alertDesc').innerText,/300/);assert.ok(!element('realAlertLabel').innerText.includes('DEMONSTRA'));
+console.log('Geometria e aviso acima da faixa: OK');

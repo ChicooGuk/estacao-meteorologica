@@ -1,0 +1,31 @@
+{
+  "data": "2026-11-10",
+  "arquivo": "Apresentacao Estacao Meteorologica - terceira conferencia final.pdf",
+  "paginas": 12,
+  "oito_obras_curriculares_presentes": true,
+  "fontes_tecnicas_preservadas": true,
+  "logs_reais_backend": true,
+  "captura_SQL_extraida_de_video_original": true,
+  "tipos_e_restricoes_presentes": true,
+  "trabalhos_futuros_explicitos": true,
+  "ressalva_formato_esquema": "Diagrama tecnico presente; sem projeto nativo Fritzing/Tinkercad/Wokwi",
+  "pdf_sha256": "0c2e4f5820e6da379a87b73ff7f3c4c5089f64978deaa35a4d67c32cc348e5bc",
+  "fontes": [
+    {
+      "nome": "correcoes.md",
+      "sha256": "d3485a412392332be5d63b08240e00082f2e3eed8d1f2f82c8f3c782a434ad4b"
+    },
+    {
+      "nome": "Roteiro de Produção.docx",
+      "sha256": "6ce3cb7d5272e6cd653fb01d8b9c20fc79fbfb4b6fa08ec73dd28fbd1b2ea091"
+    },
+    {
+      "nome": "Roteiro Orientador para o Projeto Integrador-2.docx",
+      "sha256": "e24e92086658cbb6bbb7866e2b42abc49784359a26af5ca0101971476e8163ca"
+    },
+    {
+      "nome": "manual_de_normalizacao_abnt.pdf",
+      "sha256": "ca9f3e2ffa400723dfabc746974afbaf1502f5cb8d339a9a958a1399cd771122"
+    }
+  ]
+}

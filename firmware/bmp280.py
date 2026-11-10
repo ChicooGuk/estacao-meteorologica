@@ -6,14 +6,19 @@ class BMP280:
         self.i2c = i2c
         self.addr = addr
         
-        # Verifica se o sensor está presente no barramento
-        devices = self.i2c.scan()
-        if self.addr not in devices:
-            # Tenta o endereço alternativo 0x77
-            if 0x77 in devices:
-                self.addr = 0x77
-            else:
-                raise RuntimeError(f"BMP280 não encontrado no endereço 0x76 ou 0x77. Dispositivos achados: {devices}")
+        # Provar somente os enderecos do BMP280. Uma varredura completa pode
+        # bloquear o event loop por segundos quando o barramento esta sem energia.
+        encontrado = False
+        for candidato in (addr, 0x77 if addr != 0x77 else 0x76):
+            try:
+                self.i2c.readfrom_mem(candidato, 0xD0, 1)
+                self.addr = candidato
+                encontrado = True
+                break
+            except OSError:
+                pass
+        if not encontrado:
+            raise RuntimeError("BMP280 nao encontrado em 0x76 ou 0x77")
 
         # Leitura dos registradores de calibração do BMP280
         self._read_calibration_data()
@@ -76,7 +81,7 @@ class BMP280:
             pressao_hpa = 0.0  # Evita divisão por zero
         else:
             p = 1048576 - adc_p
-            p = int(((p << 31) - var2) * 3125 / var1)
+            p = (((p << 31) - var2) * 3125) // var1
             var1 = (self.dig_P9 * (p >> 13) * (p >> 13)) >> 25
             var2 = (self.dig_P8 * p) >> 19
             p = ((p + var1 + var2) >> 8) + (self.dig_P7 << 4)

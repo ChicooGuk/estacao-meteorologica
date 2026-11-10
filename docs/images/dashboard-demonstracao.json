@@ -1,0 +1,16 @@
+{
+  "arquivo": "docs/images/dashboard-demonstracao.gif",
+  "fonte": "Video final/02 - Videos principais/05 - Dashboard.mp4",
+  "inicio_na_fonte_s": 78,
+  "duracao_s": 12.01,
+  "quadros": 96,
+  "resolucao": [
+    1000,
+    476
+  ],
+  "fps": 8,
+  "bytes": 528468,
+  "loop_infinito": true,
+  "edicao": "Recorte contínuo da gravação original; barra do navegador e barra lateral removidas; sem áudio, sem alterações nos valores e sem aceleração.",
+  "sha256": "69f1d2de180fc876ceff53131ac91e461dd54d86901e04d1662f1af7d9070b4d"
+}

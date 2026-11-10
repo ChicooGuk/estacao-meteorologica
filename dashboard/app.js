@@ -39,7 +39,8 @@ let gpsAccuracyCircle = null;
 let userGpsActive = false;
 let melhorPrecisaoGps = Infinity;
 let currentCoords = { lat: DEFAULT_LAT, lng: DEFAULT_LNG, source: 'Padrão (SP)', bairro: '', accuracy: null };
-let modoComparativo = 'sp'; // 'sp' (São Paulo Capital) ou 'local' (Sua Região / GPS)
+let modoComparativo = 'local';
+let coordenadasComparadas = '';
 
 function salvarCoordenadasLocais(lat, lng, fonte) {
   try {
@@ -55,11 +56,11 @@ function inicializarMapa() {
 
     const initialLat = DEFAULT_LAT;
     const initialLng = DEFAULT_LNG;
-    const savedSource = 'Localizacao aproximada';
+    const savedSource = 'Localização aproximada';
 
     map = L.map('map', {
       zoomControl: true,
-      attributionControl: false
+      attributionControl: true
     }).setView([initialLat, initialLng], 16);
 
     // --------------------------------------------------------------------------
@@ -110,6 +111,7 @@ function inicializarMapa() {
     }).addTo(map);
 
     stationMarker.on('drag', mostrarCoordenadasAjuste);
+    map.on('click', event => { if (!editandoLocalizacao) mostrarDistanciaMapa(event.latlng); });
     document.getElementById('btnEditLocation').addEventListener('click', iniciarAjusteLocalizacao);
     document.getElementById('btnCancelLocation').addEventListener('click', cancelarAjusteLocalizacao);
     document.getElementById('locationForm').addEventListener('submit', salvarAjusteLocalizacao);
@@ -119,7 +121,7 @@ function inicializarMapa() {
         <strong style="color:var(--accent-forest); font-weight:700;">Localização da Estação</strong><br>
         <span id="popupLocationTitle" style="color:#141712; font-weight:600;">${savedSource}</span><br>
         <span id="popupData" style="color:#586152;">Aguardando telemetria...</span><br>
-        <small style="color:#828B7C;">(Coordenadas do cadastro da estacao)</small>
+        <small style="color:#828B7C;">(Coordenadas do cadastro da estação)</small>
       </div>
     `);
 
@@ -129,6 +131,29 @@ function inicializarMapa() {
   } catch (err) {
     console.warn("[MAPA] Erro ao carregar Leaflet:", err);
   }
+}
+
+// Coordenadas esfericas para distancia e vetor cartesiano local (leste/norte).
+function geometriaEntrePontos(origem, destino) {
+  const valores = [origem.lat, origem.lng, destino.lat, destino.lng];
+  if (!valores.every(Number.isFinite) || Math.abs(origem.lat)>90 || Math.abs(destino.lat)>90 || Math.abs(origem.lng)>180 || Math.abs(destino.lng)>180) return null;
+  const rad = Math.PI / 180, raio = 6371008.8;
+  const lat1=origem.lat*rad, lat2=destino.lat*rad;
+  const dlat=lat2-lat1, dlon=((destino.lng-origem.lng+540)%360-180)*rad;
+  const a=Math.sin(dlat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dlon/2)**2;
+  const distancia=2*raio*Math.atan2(Math.sqrt(Math.min(1,a)),Math.sqrt(Math.max(0,1-a)));
+  return {distancia, leste:raio*dlon*Math.cos((lat1+lat2)/2), norte:raio*dlat};
+}
+let pontoMedicao = null;
+let linhaMedicao = null;
+function mostrarDistanciaMapa(destino) {
+  if (!ultimaLocalizacaoSalva) return;
+  pontoMedicao=destino;
+  const g=geometriaEntrePontos(ultimaLocalizacaoSalva,destino);
+  if (!g) return;
+  escreverTexto('mapDistance', `Distância em linha geodésica: ${g.distancia.toLocaleString('pt-BR',{maximumFractionDigits:1})} m. Vetor local aproximado (leste, norte): (${g.leste.toFixed(1)}, ${g.norte.toFixed(1)}) m. Origem: estação cadastrada. Não representa trajeto por ruas.`);
+  if (linhaMedicao) linhaMedicao.remove();
+  if (map && typeof L.polyline === 'function') linhaMedicao=L.polyline([[ultimaLocalizacaoSalva.lat,ultimaLocalizacaoSalva.lng],[destino.lat,destino.lng]],{color:'#c07813',dashArray:'6 6'}).addTo(map);
 }
 
 let editandoLocalizacao = false;
@@ -145,7 +170,7 @@ function iniciarAjusteLocalizacao() {
   editandoLocalizacao = true;
   document.getElementById('locationForm').hidden = false;
   document.getElementById('btnEditLocation').hidden = true;
-  document.getElementById('locationStatus').innerText = 'Arraste o marcador. A alteracao so sera aplicada ao salvar.';
+  document.getElementById('locationStatus').innerText = 'Arraste o marcador. A alteração só será aplicada ao salvar.';
   const ponto = ultimaLocalizacaoSalva || {lat: DEFAULT_LAT, lng: DEFAULT_LNG};
   stationMarker.setLatLng([ponto.lat, ponto.lng]).setOpacity(1);
   stationMarker.dragging.enable();
@@ -160,7 +185,7 @@ function cancelarAjusteLocalizacao() {
   document.getElementById('btnEditLocation').hidden = false;
   document.getElementById('locationAdminKey').value = '';
   if (ultimaLocalizacaoSalva) {
-    atualizarCoordenadasMapa(ultimaLocalizacaoSalva.lat, ultimaLocalizacaoSalva.lng, 'Cadastro da estacao');
+    atualizarCoordenadasMapa(ultimaLocalizacaoSalva.lat, ultimaLocalizacaoSalva.lng, 'Cadastro da estação');
   } else {
     stationMarker.setOpacity(0);
     document.getElementById('geoLat').innerText = '--';
@@ -189,15 +214,15 @@ async function salvarAjusteLocalizacao(event) {
     });
     if (!resposta.ok) {
       const erro = await resposta.json().catch(() => ({}));
-      throw new Error(typeof erro.detail === 'string' ? erro.detail : 'Falha ao salvar. Verifique o backend e a permissao UPDATE no MySQL.');
+      throw new Error(typeof erro.detail === 'string' ? erro.detail : 'Falha ao salvar. Verifique o backend e a permissão UPDATE no MySQL.');
     }
     const salva = await resposta.json();
     ultimaLocalizacaoSalva = {lat: salva.latitude, lng: salva.longitude};
     salvandoLocalizacao = false;
     cancelarAjusteLocalizacao();
-    status.innerText = 'Localizacao salva no banco. Aproximada, definida manualmente.';
+    status.innerText = 'Localização salva no banco. Aproximada, definida manualmente.';
   } catch (erro) {
-    status.innerText = erro.name === 'AbortError' ? 'Tempo esgotado. Confira a conexao e tente novamente.' : erro.message;
+    status.innerText = erro.name === 'AbortError' ? 'Tempo esgotado. Confira a conexão e tente novamente.' : erro.message;
     stationMarker.dragging.enable();
   } finally {
     clearTimeout(timer);
@@ -208,9 +233,10 @@ async function salvarAjusteLocalizacao(event) {
 }
 
 function atualizarCoordenadasMapa(lat, lng, fonte = 'GPS Dispositivo', precisao = null) {
-  if (fonte !== 'Cadastro da estacao' || editandoLocalizacao) return;
+  if (fonte !== 'Cadastro da estação' || editandoLocalizacao) return;
   const mudou = currentCoords.lat !== lat || currentCoords.lng !== lng;
   currentCoords = { lat, lng, source: fonte };
+  if (pontoMedicao) mostrarDistanciaMapa(pontoMedicao);
   if (stationMarker) stationMarker.setLatLng([lat, lng]);
   if (map && mudou) map.setView([lat, lng], 16, { animate: false });
 
@@ -225,6 +251,9 @@ function atualizarCoordenadasMapa(lat, lng, fonte = 'GPS Dispositivo', precisao 
   if (geoSourceEl) geoSourceEl.innerText = 'Definida manualmente';
   if (geoAccuracyEl) geoAccuracyEl.innerText = 'Aproximada';
   if (popupTitleEl) popupTitleEl.innerText = `${fonte} (Lat: ${lat.toFixed(4)}, Lng: ${lng.toFixed(4)})`;
+  if (modoComparativo === 'local' && ultimaLocalizacaoSalva && coordenadasComparadas !== `${lat},${lng}`) {
+    obterDadosComparativos('local');
+  }
 }
 
 // Geocodificação reversa para descobrir o nome da rua, bairro e cidade pela latitude/longitude
@@ -277,11 +306,71 @@ async function identificarBairroReverso(lat, lng) {
   }
 }
 
-// A posicao da estacao vem exclusivamente da API.
+// A posicao da estação vem exclusivamente da API.
 function sincronizarLocalizacaoDispositivo() {}
-function buscarLocalizacaoPorTexto() {}
+let buscandoCep = false;
+let marcadorCep = null;
+async function buscarLocalizacaoPorTexto() {
+  const input = document.getElementById('inputAddressSearch');
+  const status = document.getElementById('cepStatus');
+  const cep = (input?.value || '').replace(/\D/g, '');
+  if (cep.length !== 8) { status.innerText = 'Digite um CEP com 8 dígitos.'; return; }
+  if (buscandoCep) return;
+  if (!map) { status.innerText = 'O mapa não está disponível. Recarregue a página.'; return; }
+  buscandoCep = true;
+  const botao = document.getElementById('btnSearchAddress');
+  botao.disabled = true;
+  status.innerText = 'Buscando endereço…';
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 10000);
+  try {
+    const resposta = await fetch(`https://viacep.com.br/ws/${cep}/json/`, {signal: controller.signal});
+    if (!resposta.ok) throw new Error(resposta.status === 404 ? 'CEP não encontrado.' : 'Serviço de CEP indisponível. Tente novamente.');
+    const endereco = await resposta.json();
+    if (endereco.erro) throw new Error('CEP não encontrado.');
+    const descricao = [endereco.logradouro, endereco.bairro, endereco.localidade, endereco.uf].filter(Boolean).join(', ');
+    const pontoResposta = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&countrycodes=br&postalcode=${cep.slice(0,5)}-${cep.slice(5)}&limit=1`, {signal: controller.signal});
+    if (!pontoResposta.ok) throw new Error(`${descricao}. Serviço do mapa indisponível. Tente novamente.`);
+    let pontos = await pontoResposta.json();
+    let origemPonto = 'CEP';
+    if (!pontos.length && endereco.logradouro && endereco.localidade) {
+      status.innerText = `${descricao}. Localizando a rua…`;
+      const parametros = new URLSearchParams({format:'jsonv2', countrycodes:'br', limit:'1',
+        street:endereco.logradouro, city:endereco.localidade, state:endereco.estado || endereco.uf});
+      const ruaResposta = await fetch(`https://nominatim.openstreetmap.org/search?${parametros}`, {signal:controller.signal});
+      if (!ruaResposta.ok) throw new Error(`${descricao}. Serviço do mapa indisponível. Tente novamente.`);
+      pontos = await ruaResposta.json();
+      origemPonto = 'Rua';
+    }
+    const coords = pontos[0];
+    const lat = coords?.lat == null || coords.lat === '' ? NaN : Number(coords.lat);
+    const lng = coords?.lon == null || coords.lon === '' ? NaN : Number(coords.lon);
+    if (!Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat)>90 || Math.abs(lng)>180) {
+      status.innerText = `${descricao}. Não foi possível localizar o CEP ou a rua; ajuste o ponto manualmente no mapa.`;
+      return;
+    }
+    map.setView([lat, lng], 17);
+    if (marcadorCep) { marcadorCep.remove(); marcadorCep = null; }
+    if (editandoLocalizacao && !salvandoLocalizacao) {
+      stationMarker.setLatLng([lat, lng]);
+      mostrarCoordenadasAjuste();
+      status.innerText = `${descricao}. ${origemPonto}: ponto aproximado, sem número. Confira e ajuste o marcador antes de clicar em Salvar localização.`;
+    } else {
+      marcadorCep = L.circleMarker([lat,lng], {radius:8,color:'#2563eb',fillOpacity:0.4}).addTo(map).bindTooltip(`${origemPonto}: ponto aproximado, sem número`);
+      status.innerText = `${descricao}. ${origemPonto}: consulta aproximada, sem número. Para cadastrar a estação aqui, clique em Ajustar localização e busque o CEP novamente.`;
+    }
+  } catch (erro) {
+    status.innerText = erro.name === 'AbortError' ? 'A busca demorou demais. Tente novamente.' : erro.message;
+  } finally {
+    clearTimeout(timeout);
+    buscandoCep = false;
+    botao.disabled = false;
+  }
+}
 
 let sensorChart = null;
+let assinaturaGrafico = '';
+const movimentoReduzido = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
 const MAX_DATA_POINTS = 25; // Mantém as últimas 25 leituras na tela
 
 function inicializarGrafico() {
@@ -330,6 +419,7 @@ function inicializarGrafico() {
         ]
       },
       options: {
+        animation: false,
         responsive: true,
         maintainAspectRatio: false,
         interaction: {
@@ -406,10 +496,14 @@ function inicializarGrafico() {
 // ------------------------------------------------------------------------------
 const historicoLeituras = [];
 
-function atualizarEstatisticas(leitura) {
+function atualizarEstatisticas(leitura, renderizar = true) {
   historicoLeituras.push(leitura);
   if (historicoLeituras.length > 50) {
     historicoLeituras.shift();
+  }
+  if (!renderizar) {
+    adicionarAoHistorico(leitura, leitura.data_hora ? new Date(leitura.data_hora) : null, false);
+    return;
   }
 
   const sampleCountEl = document.getElementById('sampleCount');
@@ -456,7 +550,8 @@ function atualizarEstatisticas(leitura) {
     sensorChart.data.datasets[0].data.push(leitura.temperatura);
     sensorChart.data.datasets[1].data.push(leitura.umidade);
     sensorChart.data.datasets[2].data.push(leitura.qualidade_ar);
-    sensorChart.update();
+    sensorChart.stop?.();
+    sensorChart.update('none');
   }
 
   // Atualiza Popup do Mapa
@@ -476,8 +571,13 @@ function atualizarEstatisticas(leitura) {
 // 6.1 TABELA DE HISTÓRICO DETALHADO E EXPORTAÇÃO CSV
 // ------------------------------------------------------------------------------
 const historicoTabela = [];
+const REGISTROS_POR_PAGINA = 8;
+let paginaHistorico = 0;
+let ocultarAteId = 0;
+try { ocultarAteId = Math.max(0, Number(localStorage.getItem('estacao_historico_ocultar_ate_1')) || 0); } catch (_) {}
 
-function adicionarAoHistorico(leitura, customTime = null) {
+function adicionarAoHistorico(leitura, customTime = null, renderizar = true) {
+  if (Number.isFinite(leitura.id_leitura) && leitura.id_leitura <= ocultarAteId) return;
   const agora = customTime || new Date();
   const horaStr = agora.toLocaleTimeString('pt-BR');
   const dataStr = agora.toLocaleDateString('pt-BR');
@@ -486,18 +586,13 @@ function adicionarAoHistorico(leitura, customTime = null) {
   let diagTexto = Object.values(leitura.qualidade || {}).includes('outlier_temporal') ? 'Leitura filtrada' : (['temperatura','umidade','pressao','qualidade_ar','luminosidade'].some(k => !Number.isFinite(leitura[k])) ? 'Dados parciais' : 'Normal');
   let diagClasse = 'tag-ok';
 
-  if (leitura.qualidade_ar > 1800) {
-    diagTexto = 'Ar Crítico';
-    diagClasse = 'tag-alert';
-  } else if (leitura.temperatura > 34) {
+  if (leitura.temperatura > 34) {
     diagTexto = 'Calor';
     diagClasse = 'tag-alert';
   } else if (Number.isFinite(leitura.umidade) && leitura.umidade < 30) {
     diagTexto = 'Ar Seco';
     diagClasse = 'tag-warn';
-  } else if (leitura.qualidade_ar > 1200) {
-    diagTexto = 'Atenção Ar';
-    diagClasse = 'tag-warn';
+
   }
 
   const registro = {
@@ -516,7 +611,22 @@ function adicionarAoHistorico(leitura, customTime = null) {
     historicoTabela.pop();
   }
 
-  renderizarTabelaHistorico();
+  if (renderizar) renderizarTabelaHistorico();
+}
+
+function atualizarSerieGrafico(serie) {
+  if (!sensorChart) return;
+  const assinatura = JSON.stringify(serie.map(r => [r.data_hora,r.temperatura,r.umidade,r.qualidade_ar]));
+  if (assinatura === assinaturaGrafico) return;
+  assinaturaGrafico = assinatura;
+  sensorChart.stop?.();
+  const labels = serie.map(r => new Date(r.data_hora).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}));
+  sensorChart.data.labels.splice(0, sensorChart.data.labels.length, ...labels);
+  ['temperatura','umidade','qualidade_ar'].forEach((campo, i) => {
+    const dados = sensorChart.data.datasets[i].data;
+    dados.splice(0, dados.length, ...serie.map(r => r[campo]));
+  });
+  sensorChart.update('none');
 }
 
 function renderizarTabelaHistorico() {
@@ -525,17 +635,27 @@ function renderizarTabelaHistorico() {
   if (!tbody) return;
 
   if (counter) counter.innerText = `${historicoTabela.length} registros`;
+  const paginas = Math.max(1, Math.ceil(historicoTabela.length / REGISTROS_POR_PAGINA));
+  paginaHistorico = Math.min(paginaHistorico, paginas - 1);
+  const resumo = document.getElementById('historyPageStatus');
+  if (resumo) resumo.innerText = `Página ${paginaHistorico + 1} de ${paginas}`;
+  const anterior = document.getElementById('btnHistoryPrevious');
+  const proximo = document.getElementById('btnHistoryNext');
+  if (anterior) anterior.disabled = paginaHistorico === 0;
+  if (proximo) proximo.disabled = paginaHistorico >= paginas - 1;
+  const restaurar = document.getElementById('btnRestoreHistory');
+  if (restaurar) restaurar.hidden = ocultarAteId === 0;
 
   if (historicoTabela.length === 0) {
     tbody.innerHTML = `
       <tr class="empty-row">
-        <td colspan="7">Nenhum registro armazenado nesta sessão.</td>
+        <td colspan="7">Nenhum registro nesta exibição. Novas leituras aparecerão automaticamente.</td>
       </tr>
     `;
     return;
   }
 
-  tbody.innerHTML = historicoTabela.map(item => `
+  tbody.innerHTML = historicoTabela.slice(paginaHistorico * REGISTROS_POR_PAGINA, (paginaHistorico + 1) * REGISTROS_POR_PAGINA).map(item => `
     <tr>
       <td><code>${item.timestamp}</code></td>
       <td><strong>${formatarNumero(item.temperatura)}</strong> °C</td>
@@ -570,6 +690,9 @@ function exportarCSV() {
 }
 
 function limparHistorico() {
+  ocultarAteId = Math.max(ocultarAteId, ...historicoLeituras.map(r => Number(r.id_leitura) || 0));
+  try { localStorage.setItem('estacao_historico_ocultar_ate_1', String(ocultarAteId)); } catch (_) {}
+  paginaHistorico = 0;
   historicoTabela.length = 0;
   renderizarTabelaHistorico();
 }
@@ -578,6 +701,7 @@ function limparHistorico() {
 // 7. SISTEMA DE ALERTAS AMBIENTAIS (RF04)
 // ------------------------------------------------------------------------------
 let alertDismissed = false;
+let historicoPressaoAlertas = [];
 
 function suspenderAlertas() {
   const banner = document.getElementById('alertBanner');
@@ -585,52 +709,85 @@ function suspenderAlertas() {
   alertDismissed = false;
 }
 
+const AVISO_SINAL_MQ_ANTIGO = ' · Sem atualização: estação sem dados recentes.';
+
+function textoSinalMqDesatualizado(texto) {
+  return texto.replace(/ · Sem atualização.*$/, '') + AVISO_SINAL_MQ_ANTIGO;
+}
+
+function marcarSinalMqDesatualizado() {
+  const el = document.getElementById('mqRaw');
+  if (el) escreverTexto('mqRaw', textoSinalMqDesatualizado(el.innerText));
+}
+
 // Se o navegador perder contato ou a coleta parar, nao manter alerta como atual.
 function verificarAtualidade() {
-  if (isDemoMode) return;
+  atualizarContadorMq();
+  if (isDemoMode || document.getElementById('apiStatus')?.innerText === 'API indisponível') return;
   const amostra = historicoLeituras[historicoLeituras.length - 1];
   const timestamp = amostra ? Date.parse(amostra.data_hora) : NaN;
   if (!ultimaRespostaApi || Date.now() - ultimaRespostaApi > 10000 ||
       !Number.isFinite(timestamp) || Date.now() - timestamp > 10000) {
     estacaoAtual = false;
+    marcarSinalMqDesatualizado();
+    atualizarContadorMq();
     suspenderAlertas();
     atualizarComparativoLadoALado(ultimaLeituraLocal);
     const status = document.getElementById('statusText');
     const badge = document.getElementById('statusBadge');
     if (badge) badge.classList.remove('online');
-    if (status && amostra) status.innerText = 'Estacao sem dados recentes (ultima medicao no historico)';
+    if (status && amostra) escreverTexto('statusText', 'Estação sem dados recentes');
+    for (const id of ['stTemp', 'stPress', 'stUmid', 'stAir', 'stLight']) {
+      const el = document.getElementById(id);
+      if (el) escreverTexto(id, 'Sem medição atual; consulte o horário da última leitura');
+    }
   }
 }
 
 
-function verificarAlertas(data) {
+function verificarAlertas(data, qualidade = {}, estados = {}, modoTeste = false) {
   const banner = document.getElementById('alertBanner');
   const title = document.getElementById('alertTitle');
   const desc = document.getElementById('alertDesc');
   if (!banner || !title || !desc) return;
 
-  const tempCritica = data.temperatura > 35.0;
-  const arCritico = data.qualidade_ar > 1800;
-  const umidCritica = Number.isFinite(data.umidade) && (data.umidade < 20.0 || data.umidade > 85.0);
-
-  if (tempCritica || arCritico || umidCritica) {
-    if (!alertDismissed) {
-      banner.classList.remove('hidden');
-      if (arCritico) {
-        title.innerText = 'Alerta: Concentração Crítica de Gases Poluentes';
-        desc.innerText = `Sensor MQ-135 detectou ${data.qualidade_ar} PPM de compostos químicos no ar.`;
-      } else if (tempCritica) {
-        title.innerText = 'Alerta: Temperatura Excessiva';
-        desc.innerText = `Ambiente registrando ${data.temperatura}°C, acima da faixa de conforto térmico.`;
-      } else if (umidCritica) {
-        title.innerText = 'Alerta: Umidade Fora dos Limites Ideais';
-        desc.innerText = `Índice de umidade relativa aferido em ${data.umidade}%.`;
-      }
-    }
-  } else {
-    banner.classList.add('hidden');
-    alertDismissed = false; // Restaura quando as condições normalizarem
+  const avisos = [];
+  const numero = v => Number.isFinite(v) ? v.toLocaleString('pt-BR', {maximumFractionDigits: 2}) : '--';
+  if (estados.qualidade_ar === 'acima_faixa') {
+    const limite = modoTeste ? '1.000' : '300';
+    avisos.push(['ALERTA: sinal do ar acima da faixa de estimativa', `O MQ-135 ultrapassou a faixa de ${limite} PPM do modelo. O valor exato está indisponível. Confira o sensor e o ambiente; isso não confirma a concentração de um gás.`]);
+  } else if (estados.qualidade_ar === 'adc_saturado') {
+    avisos.push(['AVISO: sinal do MQ-135 saturado', 'O sinal atingiu o limite do ADC. O PPM está indisponível; confira as conexões, a tensão de entrada e o sensor.']);
+  } else if (qualidade.qualidade_ar === 'outlier_temporal') {
+    avisos.push(['ALERTA: variação na qualidade do ar', 'Variação abrupta no MQ-135 detectada pelo filtro. Confira o sensor e o ambiente; o sinal não identifica a substância.']);
+  } else if (Number.isFinite(data.qualidade_ar) && data.qualidade_ar >= 150) {
+    avisos.push(['ALERTA: elevação no sinal de qualidade do ar', `Leitura de ${numero(data.qualidade_ar)} PPM estimado, acima do limiar de acompanhamento de 150 PPM. Confira o sensor e o ambiente. Este limiar não representa um limite de segurança.`]);
   }
+  if (Number.isFinite(data.temperatura) && data.temperatura > 35 && !qualidade.temperatura) {
+    avisos.push(['AVISO: temperatura do ambiente alta', `Temperatura de ${numero(data.temperatura)} °C, acima do limiar de 35 °C. Verifique a exposição ao calor e a posição do sensor.`]);
+  }
+  if (Number.isFinite(data.umidade) && !qualidade.umidade && (data.umidade < 20 || data.umidade > 85)) {
+    avisos.push([data.umidade < 20 ? 'AVISO: umidade do ambiente baixa' : 'AVISO: umidade do ambiente elevada', `Umidade relativa de ${numero(data.umidade)}%, fora do intervalo de acompanhamento de 20% a 85%.`]);
+  }
+  if (Number.isFinite(data.luminosidade) && data.luminosidade < 10 && !qualidade.luminosidade) {
+    avisos.push(['AVISO: luminosidade do ambiente baixa', `Luminosidade estimada em ${numero(data.luminosidade)} lux, abaixo de 10 lux. Confira a iluminação e se há objetos cobrindo o LDR.`]);
+  }
+  const agora = Date.now();
+  const anteriores = [...historicoPressaoAlertas, ...historicoLeituras].filter(l => Number.isFinite(l.pressao) && !l.qualidade?.pressao && agora - Date.parse(l.data_hora) >= 5 * 60000 && agora - Date.parse(l.data_hora) <= 30 * 60000);
+  const referencia = anteriores.sort((a,b) => Date.parse(a.data_hora) - Date.parse(b.data_hora))[0];
+  if (Number.isFinite(data.pressao) && !qualidade.pressao && referencia && referencia.pressao - data.pressao >= 6) {
+    avisos.push(['AVISO: queda na pressão atmosférica', `Pressão passou de ${numero(referencia.pressao)} para ${numero(data.pressao)} hPa nos últimos 30 minutos. Acompanhe a tendência; a variação isolada não prevê tempestades.`]);
+  }
+  const chave = avisos.map(a => a[0]).join('|');
+  if (chave !== banner.dataset.alertKey) alertDismissed = false;
+  banner.dataset.alertKey = chave;
+  banner.classList.toggle('hidden', !avisos.length || alertDismissed);
+  if (avisos.length) {
+    title.innerText = avisos[0][0];
+    desc.innerText = avisos.map((a,i) => i ? `${a[0]}. ${a[1]}` : a[1]).join('\n\n');
+    escreverTexto('realAlertLabel', isDemoMode ? 'MODO DEMONSTRAÇÃO · DADOS SIMULADOS' : 'ESTAÇÃO · LEITURA RECEBIDA');
+  }
+
 }
 
 // ------------------------------------------------------------------------------
@@ -687,7 +844,7 @@ async function atualizarDashboard() {
     const destino = new URL(API_URL, window.location.href);
     const headers = /\.(ngrok-free\.dev|ngrok-free\.app)$/.test(destino.hostname)
       ? { 'ngrok-skip-browser-warning': '1' } : {};
-    const response = await fetch(API_URL, { signal: controller.signal, headers });
+    const response = await fetch(API_URL, { signal: controller.signal, headers, cache: 'no-store' });
 
 
     if (!response.ok) {
@@ -698,26 +855,29 @@ async function atualizarDashboard() {
     if (isDemoMode) return;
     historicoLeituras.length = 0;
     historicoTabela.length = 0;
-    if (sensorChart) {
-      sensorChart.data.labels.length = 0;
-      sensorChart.data.datasets.forEach(d => { d.data.length = 0; });
-    }
-    for (const leitura of [...data.historico].reverse()) atualizarEstatisticas(leitura);
+    for (const leitura of [...data.historico].reverse()) atualizarEstatisticas(leitura, false);
+    atualizarSerieGrafico(Array.isArray(data.historico_24h) ? data.historico_24h : [...data.historico].reverse().slice(-MAX_DATA_POINTS));
+    const contador = document.getElementById('sampleCount');
+    if (contador) contador.innerText = `Últimos ${data.historico.length} registros; gráfico: médias de 5 min / 24h`;
     renderizarTabelaHistorico();
     const estacao = data.estacao;
     if (estacao && Number.isFinite(estacao.latitude) && Number.isFinite(estacao.longitude)) {
       ultimaLocalizacaoSalva = {lat: estacao.latitude, lng: estacao.longitude};
-      atualizarCoordenadasMapa(estacao.latitude, estacao.longitude, 'Cadastro da estacao');
+      atualizarCoordenadasMapa(estacao.latitude, estacao.longitude, 'Cadastro da estação');
       if (stationMarker) stationMarker.setOpacity(1);
     }
-    if (sensorChart && !data.historico.length) sensorChart.update('none');
     estacaoAtual = data.esp32_ativo === true;
     ultimaRespostaApi = Date.now();
     const ultima = data.historico[0];
+    historicoPressaoAlertas = Array.isArray(data.historico_24h) ? data.historico_24h : [];
     renderizarDados(ultima || {}, false);
+    const coleta = Number.isFinite(ultima?.coletado_em) ? ultima.coletado_em * 1000 : NaN;
+    const atraso = Date.now() - coleta;
+    escreverTexto('telemetryDelay', Number.isFinite(atraso) && atraso >= 0 ? `Idade da coleta ao exibir: ${(atraso/1000).toFixed(1)} s. Meta de atualização: até 5 s após envio; inclui coleta, rede, fila e consulta e depende dos relógios sincronizados.` : 'Tempo de coleta indisponível: não é possível medir a idade ponta a ponta.');
+    atualizarPicoMq135(data.historico);
     if (!data.esp32_ativo) {
       if (statusBadge) statusBadge.classList.remove('online');
-      if (statusText) statusText.innerText = ultima ? 'Estacao sem dados recentes' : 'Aguardando primeira leitura';
+      if (statusText) statusText.innerText = ultima ? 'Estação sem dados recentes' : 'Aguardando primeira leitura';
     }
     const stats = data.estatisticas_24h || {};
     const estatisticas = {
@@ -733,139 +893,181 @@ async function atualizarDashboard() {
   } catch (error) {
     if (statusBadge) statusBadge.classList.remove('online');
     if (statusText) statusText.innerText = 'Desconectado';
-    if (apiStatus) apiStatus.innerText = 'API indisponivel';
+    if (apiStatus) apiStatus.innerText = 'API indisponível';
     estacaoAtual = false;
+    marcarSinalMqDesatualizado();
+    atualizarContadorMq();
     suspenderAlertas();
     atualizarComparativoLadoALado(ultimaLeituraLocal);
 
     
     // Alerta o usuário no console e mantém cards informativos
     console.warn(`[TELEMETRIA] Falha ao consultar ${API_URL}:`, error.message);
+    for (const id of ['stTemp','stPress','stUmid','stAir','stLight']) {
+      const el = document.getElementById(id);
+      if (el) el.innerText = 'API indisponível; valores exibidos são da última consulta';
+    }
   } finally {
     clearTimeout(timeoutId);
     consultaEmAndamento = false;
   }
 }
 
+function valorPpmMq135(data) {
+  return data?.mq135_modo_teste === true ? data.mq135_ppm_simulado : data?.qualidade_ar;
+}
+
+let aquecimentoMq = null;
+
+function configurarContadorMq(data, isMock) {
+  const restante = data.mq135_aquecimento_restante_ms;
+  aquecimentoMq = !isMock && Number.isFinite(restante) && restante > 0
+    ? {restanteMs: restante, recebidoEm: Date.now()} : null;
+  atualizarContadorMq();
+}
+
+function atualizarContadorMq() {
+  const el = document.getElementById('mqWarmup');
+  if (!el) return;
+  el.hidden = !aquecimentoMq;
+  if (!aquecimentoMq) return;
+  if (!estacaoAtual || Date.now() - ultimaRespostaApi > 10000 || document.getElementById('apiStatus')?.innerText === 'API indisponível') {
+    escreverTexto('mqWarmup', 'Contagem pausada: aguardando dados recentes da ESP32.');
+    return;
+  }
+  const segundos = Math.ceil(Math.max(0, aquecimentoMq.restanteMs - (Date.now() - aquecimentoMq.recebidoEm)) / 1000);
+  const minutos = String(Math.floor(segundos / 60)).padStart(2, '0');
+  const resto = String(segundos % 60).padStart(2, '0');
+  escreverTexto('mqWarmup', segundos > 0
+    ? `PPM estimado durante o aquecimento; recomenda-se aguardar 3 minutos para medidas mais estáveis. Faltam ${minutos}:${resto}.`
+    : 'Aquecimento concluído; aguardando a próxima leitura da ESP32.');
+}
+
+function textoPpmMq135(data) {
+  const ppm = valorPpmMq135(data);
+  if (Number.isFinite(ppm)) return String(ppm);
+  const estado = data?.estado_sensores?.qualidade_ar;
+  if (estado === 'aquecendo') return 'Aquecendo';
+  if (estado === 'abaixo_faixa') return '<10';
+  if (estado === 'acima_faixa') return data?.mq135_modo_teste === true ? '>1000' : '>300';
+  return '--';
+}
+
+function atualizarPicoMq135(leituras) {
+  const el = document.getElementById('mqPeak');
+  if (!el) return;
+  const ultimaData = Date.parse(leituras[0]?.data_hora);
+  const teste = leituras[0]?.mq135_modo_teste === true;
+  const validas = leituras.filter(l => (l.mq135_modo_teste === true) === teste && Number.isFinite(valorPpmMq135(l)) &&
+    Number.isFinite(Date.parse(l.data_hora)) &&
+    Date.parse(l.data_hora) <= ultimaData && ultimaData - Date.parse(l.data_hora) <= 120000);
+  const pico = validas.reduce((max, l) => !max || valorPpmMq135(l) > valorPpmMq135(max) ? l : max, null);
+  el.innerText = pico
+    ? `Pico ${teste ? "simulado" : "recente"}: ${valorPpmMq135(pico).toLocaleString('pt-BR', {maximumFractionDigits:2})} ppm às ${new Date(pico.data_hora).toLocaleTimeString('pt-BR')} (até 2 min).`
+    : 'Pico recente: sem PPM numérico nos registros recebidos.';
+}
+
 function animarValorSeMudou(el, novoValor) {
   if (!el) return;
   const str = String(novoValor);
-  if (el.innerText !== str && el.innerText !== '--') {
-    el.classList.remove('value-updated');
-    void el.offsetWidth; // Força recálculo para reiniciar a animação
-    el.classList.add('value-updated');
-  }
+  if (el.innerText === str) return;
+  // Somente opacidade: nao deslocar texto ou alterar a largura durante a coleta.
+  el.getAnimations?.().forEach(animacao => animacao.cancel());
+  const anterior = el.innerText;
   el.innerText = str;
+  if (anterior !== '--' && !movimentoReduzido() && typeof el.animate === 'function') {
+    el.animate([{opacity:0.7},{opacity:1}], {duration:140,easing:'ease-out'});
+  }
+}
+
+function escreverTexto(id, valor) {
+  const el = document.getElementById(id);
+  const texto = String(valor);
+  if (el && el.innerText !== texto) el.innerText = texto;
 }
 
 function renderizarDados(data, isMock) {
   if (isMock) estacaoAtual = true;
-  const statusBadge = document.getElementById('statusBadge');
-  const statusText = document.getElementById('statusText');
-  const apiStatus = document.getElementById('apiStatus');
-  const lastSync = document.getElementById('lastSync');
+  const atual = isMock || estacaoAtual;
+  const antigo = !atual && Boolean(data.data_hora);
+  const estados = data.estado_sensores || {};
+  const formatar = (valor, casas = 1) => Number.isFinite(valor) ? valor.toFixed(casas) : '--';
+  const numeros = {
+    valTemp: formatar(data.temperatura), valPress: formatar(data.pressao),
+    valUmid: formatar(data.umidade), valAir: textoPpmMq135(data),
+    valLight: Number.isFinite(data.luminosidade) ? data.luminosidade : '--'
+  };
+  Object.entries(numeros).forEach(([id, texto]) => animarValorSeMudou(document.getElementById(id), texto));
+  const aquecendoAr = !Number.isFinite(valorPpmMq135(data)) && estados.qualidade_ar === 'aquecendo';
+  document.getElementById('valAir')?.classList.toggle('is-warming', aquecendoAr);
+  const unidadeAr = document.getElementById('airUnit');
+  if (unidadeAr) unidadeAr.hidden = aquecendoAr;
+  escreverTexto('airUnit', data.mq135_modo_teste === true ? 'PPM simulado' : 'PPM estimado');
 
-  // 1. Status Geral de Conexão
-  if (statusBadge) statusBadge.classList.add('online');
-  if (statusText) statusText.innerText = isMock ? 'Modo Demonstração' : `Online (${data.status || 'OK'})`;
-  if (apiStatus) apiStatus.innerText = isMock ? 'Simulada (Local)' : 'Respondendo (200 OK)';
-  if (lastSync) lastSync.innerText = data.data_hora ? new Date(data.data_hora).toLocaleString('pt-BR') : (isMock ? new Date().toLocaleTimeString('pt-BR') : '--');
 
-  // 2. Preenchimento dos Cards com Micro-Animação de Pulso & Textos Editoriais
-  // Temperatura
-  const elTemp = document.getElementById('valTemp');
-  const stTemp = document.getElementById('stTemp');
-  if (elTemp) animarValorSeMudou(elTemp, Number.isFinite(data.temperatura) ? data.temperatura.toFixed(1) : '--');
-  if (stTemp) {
-    if (data.temperatura > 32) stTemp.innerText = 'Temperatura elevada. Ambiente com acúmulo térmico acima da faixa de conforto.';
-    else if (data.temperatura < 18) stTemp.innerText = 'Temperatura amena. Condição térmica sob arrefecimento em relação à média.';
-    else stTemp.innerText = 'Conforto térmico equilibrado. Medição com calibração contínua DHT22 e BMP280.';
+  const descricoes = {
+    stTemp: Number.isFinite(data.temperatura) ? 'Temperatura estimada do ar.' : 'Indisponível',
+    stPress: Number.isFinite(data.pressao) ? 'Pressão estimada na altitude da estação.' : 'Indisponível',
+    stUmid: Number.isFinite(data.umidade)
+      ? data.umidade < 30 ? 'Umidade relativa baixa.' : data.umidade > 70 ? 'Umidade relativa alta.' : 'Umidade relativa estimada.'
+      : 'Indisponível',
+    stAir: Number.isFinite(data.qualidade_ar)
+      ? 'Estimativa equivalente de álcool; resposta também influenciada por outros gases.'
+      : ({
+        aquecendo: 'Cálculo de PPM aguardando o aquecimento inicial: cerca de 3 minutos após ligar ou reiniciar. O sinal ADC continua sendo acompanhado.',
+        calibracao_pendente: 'Estimativa de PPM indisponível',
+        abaixo_faixa: 'Abaixo da faixa de 10–300 ppm do modelo de álcool.',
+        acima_faixa: 'Acima da faixa de 10–300 ppm do modelo de álcool.',
+        fora_da_faixa: 'Estimativa fora da faixa do modelo; confira o sinal ADC.',
+        sinal_baixo: 'Sinal no limite inferior do ADC; confira alimentação, AO e divisor.',
+        adc_saturado: 'ADC saturado; confira a tensão e o divisor.',
+        configuracao_invalida: 'Parâmetros do circuito ou curva incompletos/inválidos.',
+        adc_nao_suportado: 'Conversão de tensão indisponível neste firmware.',
+        erro_leitura: 'Falha ao ler o ADC do MQ-135.'
+      }[estados.qualidade_ar] || 'Indisponível'),
+    stLight: estados.luminosidade === 'saturado'
+      ? 'Leitura no limite do ADC; estimativa indisponível'
+      : estados.luminosidade === 'escuro_referencia'
+        ? 'Referência de escuro atingida: luminosidade estimada em zero relativo.'
+        : Number.isFinite(data.luminosidade) ? 'Luminosidade estimada pelo sensor.' : 'Indisponível'
+  };
+  if (data.mq135_modo_teste === true) {
+    descricoes.stAir = Number.isFinite(valorPpmMq135(data))
+      ? valorPpmMq135(data) > 300
+        ? 'PPM simulado: extrapolação acima da curva de 300 ppm. Referência virtual de 0,050 V.'
+        : 'Modo de teste: referência virtual de 0,050 V.'
+      : estados.qualidade_ar === 'acima_faixa'
+        ? 'Acima do limite de 1.000 ppm da simulação. Referência virtual de 0,050 V.'
+        : estados.qualidade_ar === 'abaixo_faixa'
+          ? 'Abaixo de 10 ppm simulados. Referência virtual de 0,050 V.'
+          : descricoes.stAir + ' Modo de teste: referência virtual de 0,050 V.';
   }
-
-  // Pressão Atmosférica
-  const elPress = document.getElementById('valPress');
-  const stPress = document.getElementById('stPress');
-  if (elPress) animarValorSeMudou(elPress, Number.isFinite(data.pressao) ? data.pressao.toFixed(1) : '--');
-  if (stPress) {
-    if (data.pressao > 1020) stPress.innerText = 'Alta pressão barométrica. Condição indicativa de atmosfera firme e tempo estável.';
-    else if (data.pressao < 1005) stPress.innerText = 'Queda barométrica detectada. Gradiente de pressão favorável à instabilidade.';
-    else stPress.innerText = 'Pressão atmosférica estável na cota altimétrica do relevo local.';
+  if (Number.isFinite(data.mq135_aquecimento_restante_ms) && data.mq135_aquecimento_restante_ms > 0) {
+    descricoes.stAir += ' Estimativa preliminar durante o aquecimento; recomenda-se aguardar 3 minutos após ligar para medidas mais estáveis.';
   }
+  Object.entries(descricoes).forEach(([id, texto]) => escreverTexto(id,
+    antigo ? 'Sem medição atual; consulte o horário da última leitura' : texto));
 
-  // Umidade Relativa
-  const elUmid = document.getElementById('valUmid');
-  const stUmid = document.getElementById('stUmid');
-  if (elUmid) animarValorSeMudou(elUmid, Number.isFinite(data.umidade) ? data.umidade.toFixed(1) : '--');
-  if (stUmid) {
-    if (data.umidade < 30) stUmid.innerText = 'Ar excessivamente seco. Saturação abaixo dos padrões ideais de conforto respiratório.';
-    else if (data.umidade > 70) stUmid.innerText = 'Umidade relativa alta. Ponto de orvalho próximo da condensação no ambiente.';
-    else stUmid.innerText = 'Taxa de vapor d\'água equilibrada na faixa de conforto e conservação ambiental.';
+  const raw = data.adc_bruto?.qualidade_ar;
+  let diagnostico = Number.isFinite(raw)
+    ? `Último sinal MQ-135: ${raw.toLocaleString('pt-BR', {maximumFractionDigits:3,useGrouping:false})} / 4095 ADC${raw === 0 ? ' — sinal no limite inferior; confira as conexões' : ''}. Leitura bruta do sensor.`
+    : 'Sinal MQ-135: sem leitura bruta disponível.';
+  if (!atual) diagnostico = textoSinalMqDesatualizado(diagnostico);
+  escreverTexto('mqRaw', diagnostico);
+  const badge = document.getElementById('statusBadge');
+  if (badge) badge.classList.toggle('online', atual);
+  escreverTexto('statusText', isMock ? 'Modo Demonstração' : atual ? 'Online (OK)' : data.data_hora ? 'Estação sem dados recentes' : 'Aguardando primeira leitura');
+  escreverTexto('apiStatus', isMock ? 'Simulada (Local)' : 'Respondendo (200 OK)');
+  escreverTexto('lastSync', data.data_hora ? new Date(data.data_hora).toLocaleString('pt-BR') : isMock ? new Date().toLocaleTimeString('pt-BR') : '--');
+  escreverTexto('popupData', `Temperatura: ${formatar(data.temperatura)} °C | Umidade: ${formatar(data.umidade)}%\nPressão: ${formatar(data.pressao)} hPa | Gases: ${textoPpmMq135(data)} ppm (estimativa)`);
+  if (isMock) {
+    atualizarEstatisticas(data);
+    atualizarPicoMq135([data]);
   }
-
-  // Qualidade do Ar
-  const elAir = document.getElementById('valAir');
-  const stAir = document.getElementById('stAir');
-  if (elAir) animarValorSeMudou(elAir, Number.isFinite(data.qualidade_ar) ? data.qualidade_ar : '--');
-  if (stAir) {
-    if (data.qualidade_ar < 800) stAir.innerText = 'Ambiente purificado. Baixa concentração de gases voláteis e compostos redutores.';
-    else if (data.qualidade_ar < 1600) stAir.innerText = 'Qualidade regular. Presença moderada de particulados suspensos ou CO₂ no ar.';
-    else stAir.innerText = 'Atenção ambiental: saturação gasosa elevada detectada pelo sensor MQ-135.';
-  }
-
-  // Luminosidade
-  const elLight = document.getElementById('valLight');
-  const stLight = document.getElementById('stLight');
-  if (elLight) animarValorSeMudou(elLight, Number.isFinite(data.luminosidade) ? data.luminosidade : '--');
-  if (stLight) {
-    if (data.luminosidade > 500) stLight.innerText = 'Luminosidade intensa. Plena incidência de radiação visível sobre o fotossensor.';
-    else if (data.luminosidade > 150) stLight.innerText = 'Iluminação moderada típica de ambientes internos bem iluminados ou luz difusa.';
-    else stLight.innerText = 'Baixa intensidade luminosa. Ambiente na penumbra ou iluminação noturna.';
-  }
-
-  // 3. Atualiza Estatísticas e Gráfico
-  const sensoresUI = {temperatura: ['stTemp', 'compLocalTemp'], pressao: ['stPress', 'compLocalPress'],
-    umidade: ['stUmid', 'compLocalHumid'], qualidade_ar: ['stAir', 'compLocalAir'], luminosidade: ['stLight']};
-  Object.entries(sensoresUI).forEach(([campo, ids]) => {
-    if (!Number.isFinite(data[campo])) ids.forEach(id => {
-      const el = document.getElementById(id); if (el) el.innerText = 'Indisponivel';
-    });
-  });
-  const deltas = {temperatura: 'deltaTempVal', umidade: 'deltaHumidVal', pressao: 'deltaPressVal'};
-  Object.entries(deltas).forEach(([campo, id]) => {
-    if (!Number.isFinite(data[campo])) {
-      const el = document.getElementById(id); if (el) el.innerText = '--';
-    }
-  });
-  if (!Number.isFinite(data.qualidade_ar)) {
-    const el = document.getElementById('stAir');
-    if (el && data.estado_sensores && data.estado_sensores.qualidade_ar === 'aquecendo') el.innerText = 'Sensor em aquecimento';
-    if (el && data.estado_sensores && data.estado_sensores.qualidade_ar === 'calibracao_pendente') el.innerText = 'Calibracao pendente';
-  }
-  ['qualidade_ar', 'luminosidade'].forEach(campo => {
-    if (Number.isFinite(data[campo])) {
-      const el = document.getElementById(sensoresUI[campo][0]);
-      if (el) el.innerText = 'Estimativa do sensor; depende de calibracao e do circuito.';
-    }
-  });
-
-  if (data.estado_sensores?.luminosidade === 'saturado') {
-    const el = document.getElementById('stLight'); if (el) el.innerText = 'Leitura no limite do ADC; estimativa indisponivel';
-  }
-  if (!isMock && !estacaoAtual && data.data_hora) {
-    for (const id of ['stTemp','stPress','stUmid','stAir','stLight']) {
-      const el = document.getElementById(id); if (el) el.innerText = 'Sem medicao atual; consulte o horario da ultima leitura';
-    }
-  }
-  if (isMock) atualizarEstatisticas(data);
-
-
-
-  // 5. Verifica Alertas
-  if (isMock || estacaoAtual) verificarAlertas(data.valores_alerta || data);
+  if (atual) verificarAlertas(data.valores_alerta || data, data.qualidade || {}, estados, data.mq135_modo_teste === true);
   else suspenderAlertas();
-
-  // 6. Atualiza o Módulo Comparativo com São Paulo
   atualizarComparativoLadoALado(data);
+  configurarContadorMq(data, isMock);
 }
 
 // ------------------------------------------------------------------------------
@@ -978,20 +1180,25 @@ let pedidoComparativo = 0;
 
 async function obterDadosComparativos(modo = modoComparativo) {
   modoComparativo = modo;
+  if (modo === 'local' && !ultimaLocalizacaoSalva) {
+    document.getElementById('compMetaStation').innerText = 'Aguardando as coordenadas cadastradas da estação';
+    return;
+  }
   const pedido = ++pedidoComparativo;
   dadosOficiaisSP = referenciaVazia();
   renderizarDadosOficiaisSP();
   if (ultimaLeituraLocal) atualizarComparativoLadoALado(ultimaLeituraLocal);
   const local = modo === 'local';
-  const lat = local ? currentCoords.lat : DEFAULT_LAT;
-  const lng = local ? currentCoords.lng : DEFAULT_LNG;
-  const nome = local ? 'Coordenadas da estacao' : 'Sao Paulo';
+  const lat = local ? currentCoords.lat : -23.55052;
+  const lng = local ? currentCoords.lng : -46.63330;
+  coordenadasComparadas = local ? `${lat},${lng}` : '';
+  const nome = local ? 'Região da estação' : 'São Paulo (centro)';
   const escrever = (id, texto) => { const el = document.getElementById(id); if (el) el.innerText = texto; };
   escrever('compMetaStation', `${nome}: ${lat.toFixed(4)}, ${lng.toFixed(4)} - Open-Meteo`);
-  escrever('syncLabelPrefix','Referencia Open-Meteo');
-  escrever('spOverviewTitle',`Referencia ambiental: ${nome}`);
-  escrever('spOverviewSubtitle','Dados externos para as coordenadas consultadas; nao sao leituras do ESP32.');
-  document.querySelectorAll('.comp-official-badge-text').forEach(el => { el.innerText = 'Referencia Open-Meteo'; });
+  escrever('syncLabelPrefix','Referência Open-Meteo');
+  escrever('spOverviewTitle',`Referência ambiental: ${nome}`);
+  escrever('spOverviewSubtitle','Dados externos para as coordenadas consultadas; não são leituras do ESP32.');
+  document.querySelectorAll('.comp-official-badge-text').forEach(el => { el.innerText = 'Referência Open-Meteo'; });
   for (const [id, ativo] of [['btnCompSP',!local],['btnCompLocal',local]]) {
     const el = document.getElementById(id); if (el) el.classList.toggle('active',ativo);
   }
@@ -1018,14 +1225,14 @@ async function obterDadosComparativos(modo = modoComparativo) {
         pressMsl:numero(c.pressure_msl), pressSurface:numero(c.surface_pressure),
         apparentTemp:numero(c.apparent_temperature), precipitation:numero(c.precipitation),
         weatherCode:numero(c.weather_code), altitude:numero(clima.value.elevation), tempMin:numero(d.temperature_2m_min?.[0]),
-        tempMax:numero(d.temperature_2m_max?.[0]), climaStatus:c.time ? `Clima: ${c.time.replace('T',' ')}` : 'Clima: horario nao informado'});
-    } else referencia.climaStatus = 'Clima indisponivel';
+        tempMax:numero(d.temperature_2m_max?.[0]), climaStatus:c.time ? `Clima: ${c.time.replace('T',' ')}` : 'Clima: horário não informado'});
+    } else referencia.climaStatus = 'Clima indisponível';
     if (ar.status === 'fulfilled' && ar.value.current) {
       const c = ar.value.current;
       Object.assign(referencia,{aqi:numero(c.us_aqi), pm25:numero(c.pm2_5), pm10:numero(c.pm10),
         co:numero(c.carbon_monoxide), no2:numero(c.nitrogen_dioxide), o3:numero(c.ozone),
-        arStatus:c.time ? `Ar: ${c.time.replace('T',' ')}` : 'Ar: horario nao informado'});
-    } else referencia.arStatus = 'Qualidade do ar indisponivel';
+        arStatus:c.time ? `Ar: ${c.time.replace('T',' ')}` : 'Ar: horário não informado'});
+    } else referencia.arStatus = 'Qualidade do ar indisponível';
     referencia.lastUpdate = `${referencia.climaStatus} | ${referencia.arStatus}`;
     dadosOficiaisSP = referencia;
     renderizarDadosOficiaisSP();
@@ -1047,11 +1254,11 @@ function renderizarDadosOficiaisSP() {
     spNo2:`${formatarNumero(r.no2)} µg/m³`, spPrecipitation:`${formatarNumero(r.precipitation)} mm`,
     spThermalRange:Number.isFinite(r.tempMax)&&Number.isFinite(r.tempMin) ? `${formatarNumero(r.tempMax-r.tempMin)}°C` : '--',
     spElevation:`${formatarNumero(r.altitude,0)} m`,
-    compSpAirFormulaHint:'AQI e concentracoes individuais; sem conversao para PPM equivalente.'};
+    compSpAirFormulaHint:'AQI: índice de qualidade do ar na escala dos EUA, sem unidade. Poluentes abaixo em µg/m³.'};
   for (const [id,texto] of Object.entries(textos)) {
     const el = document.getElementById(id); if (el) el.innerText = texto;
   }
-  const condicao = Number.isFinite(r.weatherCode) ? traduzirCondicaoTempo(r.weatherCode) : {icon:'cloud_off',desc:'Referencia indisponivel'};
+  const condicao = Number.isFinite(r.weatherCode) ? traduzirCondicaoTempo(r.weatherCode) : {icon:'cloud_off',desc:'Referência indisponível'};
   const icon = document.getElementById('spWeatherIcon'); if (icon) icon.innerText = condicao.icon;
   const desc = document.getElementById('spWeatherDesc'); if (desc) desc.innerText = condicao.desc;
 }
@@ -1098,17 +1305,18 @@ function atualizarComparativoLadoALado(data) {
     if (badge) badge.classList.remove('delta-hot','delta-cold','delta-equal');
     if (!disponivel) {
       escrever(`delta${sufixo}Val`,'--');
-      escrever(`analysis${sufixo}`,estacaoAtual ? 'Referencia externa indisponivel para comparacao.' : 'Sem medicao atual da estacao. Valores anteriores permanecem no historico.');
+      escrever(`analysis${sufixo}`,estacaoAtual ? 'Referência externa indisponível para comparação.' : 'Sem medição atual da estação. Valores anteriores permanecem no histórico.');
       continue;
     }
     const delta = data[campo] - dadosOficiaisSP[referencia];
     escrever(`delta${sufixo}Val`,`${delta>0?'+':''}${formatarNumero(delta)} ${unidade}`);
     if (badge) badge.classList.add(Math.abs(delta)<0.5 ? 'delta-equal' : delta>0 ? 'delta-hot' : 'delta-cold');
-    escrever(`analysis${sufixo}`,`Diferenca entre a medicao local e a referencia Open-Meteo: ${formatarNumero(delta)} ${unidade}. Fontes e condicoes de medicao sao diferentes.`);
+    escrever(`analysis${sufixo}`,`Diferença entre a medição local e a referência Open-Meteo: ${formatarNumero(delta)} ${unidade}. Fontes e condições de medição são diferentes.`);
   }
-  escrever('compLocalAir',formatarNumero(data?.qualidade_ar,0));
-  escrever('deltaAirVal','Nao comparavel');
-  escrever('analysisAir','MQ-135 fornece estimativa nao seletiva. AQI e concentracoes de poluentes sao apresentados separadamente, nas unidades originais.');
+  escrever('compLocalAir',textoPpmMq135(data));
+  escrever('compLocalAirUnit', data?.mq135_modo_teste === true ? 'PPM simulado' : 'ppm estimado');
+  escrever('deltaAirVal','Indicadores distintos');
+  escrever('analysisAir','O MQ-135 fornece PPM estimado pela curva de álcool e também responde a outros gases. A referência externa usa AQI (escala dos EUA), um índice sem unidade calculado a partir de poluentes específicos. Não há conversão direta nem diferença numérica válida entre esses indicadores.');
 }
 
 function configurarEventos() {
@@ -1135,6 +1343,7 @@ function configurarEventos() {
   // 2. Botão Modo Simulação / Demo
   bindAction('btnDemo', () => {
     isDemoMode = !isDemoMode;
+    assinaturaGrafico = '';
     const btnDemo = document.getElementById('btnDemo');
     const demoState = document.getElementById('demoState');
     if (demoState) demoState.innerText = isDemoMode ? 'ON' : 'OFF';
@@ -1147,6 +1356,12 @@ function configurarEventos() {
     }
     if (isDemoMode) {
       console.log("[SISTEMA] Modo Simulação Ativado.");
+    } else {
+      estacaoAtual = false;
+      ultimaLeituraLocal = null;
+      renderizarDados({}, false);
+      escreverTexto('statusText', 'Consultando telemetria real');
+      atualizarPicoMq135([]);
     }
     atualizarDashboard();
   });
@@ -1202,6 +1417,50 @@ function configurarEventos() {
   bindAction('btnClearHistory', () => {
     limparHistorico();
   });
+  bindAction('btnRestoreHistory', () => {
+    ocultarAteId = 0;
+    paginaHistorico = 0;
+    try { localStorage.removeItem('estacao_historico_ocultar_ate_1'); } catch (_) {}
+    atualizarDashboard();
+  });
+  bindAction('btnHistoryPrevious', () => { paginaHistorico = Math.max(0, paginaHistorico - 1); renderizarTabelaHistorico(); });
+  bindAction('btnHistoryNext', () => { paginaHistorico += 1; renderizarTabelaHistorico(); });
+
+  // Previa independente: nao altera telemetria, alertas reais ou persistencia.
+  const exemplosAviso = {
+    ar: {icon:'air', label:'MQ-135', title:'ALERTA: variação na qualidade do ar', description:'O sinal do MQ-135 apresentou uma elevação abrupta. Verifique possíveis fontes de vapores e as condições de ventilação. A leitura não identifica a substância nem confirma uma concentração perigosa.'},
+    temperatura: {icon:'device_thermostat', label:'TEMPERATURA DO AR', title:'AVISO: temperatura do ambiente alta', description:'Temperatura de exemplo: 37 °C, acima do limite de 35 °C usado neste aviso. Verifique a exposição ao calor e se o sensor recebe luz solar direta.'},
+    umidade: {icon:'humidity_percentage', label:'UMIDADE RELATIVA', title:'AVISO: umidade do ambiente elevada', description:'Umidade de exemplo: 89%, acima do limite de 85% usado neste aviso. Observe a ventilação e possíveis sinais de condensação no local.'},
+    pressao: {icon:'speed', label:'PRESSÃO ATMOSFÉRICA', title:'AVISO: queda na pressão atmosférica', description:'Exemplo: queda de 925 para 919 hPa em 30 minutos. Acompanhe a tendência e confira o sensor. Uma variação isolada não permite prever chuva ou tempestade.'},
+    luminosidade: {icon:'light_mode', label:'LUMINOSIDADE', title:'AVISO: luminosidade do ambiente baixa', description:'Luminosidade de exemplo: 5 lux. Verifique se o local está escuro ou se há algum objeto cobrindo o LDR. A estimativa depende da posição e da resposta do sensor.'}
+  };
+  let sensorAvisoAtivo = null;
+  const botoesAviso = document.querySelectorAll('[data-demo-sensor]');
+  const encerrarDemonstracaoAviso = () => {
+    document.getElementById('demoAlertBanner')?.classList.add('hidden');
+    sensorAvisoAtivo = null;
+    botoesAviso.forEach(btn => { btn.setAttribute('aria-expanded', 'false'); btn.classList.remove('active'); });
+  };
+  botoesAviso.forEach(btn => btn.addEventListener('click', () => {
+    const banner = document.getElementById('demoAlertBanner');
+    if (!banner) return;
+    const sensor = btn.dataset.demoSensor;
+    const exemplo = exemplosAviso[sensor];
+    if (!exemplo) return;
+    if (sensorAvisoAtivo === sensor && !banner.classList.contains('hidden')) {
+      encerrarDemonstracaoAviso();
+      return;
+    }
+    sensorAvisoAtivo = sensor;
+    escreverTexto('demoAlertIcon', exemplo.icon);
+    escreverTexto('demoAlertLabel', `DEMONSTRAÇÃO · ${exemplo.label}`);
+    escreverTexto('demoAlertTitle', exemplo.title);
+    escreverTexto('demoAlertDescription', exemplo.description);
+    escreverTexto('demoAlertTime', `${new Date().toLocaleTimeString('pt-BR')} · Dados de exemplo`);
+    banner.classList.remove('hidden');
+    botoesAviso.forEach(botao => { const ativo = botao === btn; botao.setAttribute('aria-expanded', String(ativo)); botao.classList.toggle('active', ativo); });
+  }));
+  bindAction('btnCloseDemoAlert', encerrarDemonstracaoAviso);
 
   // 6. Botão Fechar Alerta
   bindAction('btnDismissAlert', () => {
@@ -1217,9 +1476,6 @@ function configurarEventos() {
 
   // 8. Botão Alternar Comparativo: Minha Região (GPS)
   bindAction('btnCompLocal', () => {
-    if (melhorPrecisaoGps > 100 || Math.abs(currentCoords.lat - DEFAULT_LAT) < 0.001) {
-      sincronizarLocalizacaoDispositivo(false);
-    }
     obterDadosComparativos('local');
   });
 
@@ -1239,8 +1495,8 @@ function boot() {
   inicializarGrafico();
 
   configurarEventos();
-  document.querySelectorAll('#btnGetLocation, #btnSearchAddress, #inputAddressSearch, #btnClearSearch').forEach(el => {
-    el.disabled = true; el.title = 'Posicao definida pelo cadastro da estacao';
+  document.querySelectorAll('#btnGetLocation').forEach(el => {
+    el.disabled = true; el.title = 'Posição definida pelo cadastro da estação';
   });
 
   // Sincroniza os dados meteorológicos oficiais de São Paulo

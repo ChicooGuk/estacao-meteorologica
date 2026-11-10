@@ -16,7 +16,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" />
 
   <!-- Folha de Estilos Principal -->
-  <link rel="stylesheet" href="style.css?v=3.0">
+  <link rel="stylesheet" href="style.css?v=20261102-faixa4000">
   
   <!-- Leaflet CSS (Mapa Interativo) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
@@ -72,7 +72,7 @@
       </button>
       <button class="tab-btn" id="tabBtnComparison" data-target="viewComparison">
         <span class="material-symbols-rounded icon-sm">compare_arrows</span>
-        <span>Comparativo São Paulo (Open-Meteo)</span>
+        <span>Comparativo regional (Open-Meteo)</span>
         <span class="tab-pill-live">Tempo Real</span>
       </button>
     </nav>
@@ -92,18 +92,42 @@
       </p>
     </section>
 
+    <div class="alert-demo-toolbar">
+      <button id="btnDemoAlert" class="btn-demo" type="button" data-demo-sensor="ar" aria-controls="demoAlertBanner" aria-expanded="false">
+        <span class="material-symbols-rounded icon-sm">notifications_active</span>
+        Qualidade do ar
+      </button>
+      <button class="btn-demo" type="button" data-demo-sensor="temperatura" aria-controls="demoAlertBanner" aria-expanded="false">Temperatura</button>
+      <button class="btn-demo" type="button" data-demo-sensor="umidade" aria-controls="demoAlertBanner" aria-expanded="false">Umidade</button>
+      <button class="btn-demo" type="button" data-demo-sensor="pressao" aria-controls="demoAlertBanner" aria-expanded="false">Pressão</button>
+      <button class="btn-demo" type="button" data-demo-sensor="luminosidade" aria-controls="demoAlertBanner" aria-expanded="false">Luminosidade</button>
+      <span>Demonstrar alertas · dados de exemplo</span>
+    </div>
+    <div id="demoAlertBanner" class="alert-banner demo-alert hidden" role="status" aria-live="polite">
+      <div class="alert-icon-wrapper"><span id="demoAlertIcon" class="material-symbols-rounded">air</span></div>
+      <div class="alert-content">
+        <span id="demoAlertLabel" class="demo-alert-label">DEMONSTRAÇÃO · MQ-135</span>
+        <strong id="demoAlertTitle">ALERTA: variação na qualidade do ar</strong>
+        <p id="demoAlertDescription">Variação abrupta no sinal do MQ-135. Verifique o sensor e as condições do ambiente.</p>
+        <p id="demoAlertTime"></p>
+      </div>
+      <button class="alert-close" id="btnCloseDemoAlert" type="button" aria-label="Encerrar demonstração de aviso">&times;</button>
+    </div>
+
     <!-- Banner de Alerta Dinâmico (RF04) -->
-    <div id="alertBanner" class="alert-banner hidden">
+    <div id="alertBanner" class="alert-banner demo-alert real-alert hidden" role="status" aria-live="polite">
       <div class="alert-icon-wrapper">
         <span class="material-symbols-rounded">warning</span>
       </div>
       <div class="alert-content">
+        <span id="realAlertLabel" class="demo-alert-label">ESTAÇÃO · LEITURA RECEBIDA</span>
         <strong id="alertTitle">Condição Ambiental Fora do Padrão</strong>
         <p id="alertDesc">Valores que exigem atenção foram detectados na estação.</p>
       </div>
       <button class="alert-close" id="btnDismissAlert" title="Fechar alerta">&times;</button>
     </div>
 
+    <p id="telemetryDelay" class="map-geometry-info" role="status">Aguardando horário de coleta.</p>
     <!-- Grid de Métricas Principais (5 Sensores Físicos com Design Exato do Figma) -->
     <main class="metrics-grid">
       
@@ -119,7 +143,7 @@
             <span class="card-figma-unit">°C</span>
           </div>
           <p class="card-figma-desc" id="stTemp">
-            Condição térmica monitorada em tempo real com calibração contínua dos sensores DHT22 e BMP280.
+            Temperatura do ar estimada a partir das leituras dos sensores DHT22 e BMP280.
           </p>
         </div>
       </article>
@@ -136,7 +160,7 @@
             <span class="card-figma-unit">hPa</span>
           </div>
           <p class="card-figma-desc" id="stPress">
-            Pressão atmosférica de superfície aferida com alta precisão barométrica para a altitude local.
+            Pressão atmosférica de superfície estimada a partir das leituras do BMP280.
           </p>
         </div>
       </article>
@@ -164,12 +188,15 @@
           <span class="material-symbols-rounded">nest_eco_leaf</span>
         </div>
         <div class="card-content-wrap">
-          <h3 class="card-figma-title">Pureza do Ar & Gases</h3>
+          <h3 class="card-figma-title">Gases no ambiente</h3>
           <div class="card-figma-value">
             <span class="card-figma-number" id="valAir">--</span>
-            <span class="card-figma-unit">PPM estimado</span>
+            <span class="card-figma-unit" id="airUnit">PPM estimado</span>
           </div>
-          <p class="card-figma-desc" id="stAir">
+          <p class="card-figma-desc" id="mqRaw">Sinal MQ-135: aguardando telemetria.</p>
+          <p class="card-figma-desc" id="mqWarmup" role="timer" aria-live="off" hidden></p>
+          <p class="card-figma-desc" id="mqPeak">Pico recente: aguardando telemetria.</p>
+          <p class="card-figma-desc" id="stAir" role="status" aria-live="polite">
             Concentração de compostos voláteis, CO₂ e gases redutores captados na entrada analógica.
           </p>
         </div>
@@ -234,8 +261,8 @@
               <span class="material-symbols-rounded icon-xs">show_chart</span>
               Tendência Temporal
             </div>
-            <h2>Evolução Contínua</h2>
-            <p>Temperatura, umidade relativa e concentração de gases</p>
+            <h2>Histórico das últimas 24 horas</h2>
+            <p>Médias em intervalos de 5 minutos; tabela e CSV: últimos 50 registros</p>
           </div>
         </div>
         <div class="chart-container">
@@ -257,6 +284,16 @@
           <span class="panel-tag">Coordenadas cadastradas da estação</span>
         </div>
 
+        <div class="cep-search">
+          <label for="inputAddressSearch">Encontrar endereço por CEP</label>
+          <div class="cep-search-row">
+            <input id="inputAddressSearch" type="text" inputmode="numeric" autocomplete="postal-code" maxlength="9" placeholder="00000-000" aria-describedby="cepStatus" />
+            <button id="btnSearchAddress" type="button" class="btn-action">Buscar CEP</button>
+          </div>
+          <p id="cepStatus" role="status" aria-live="polite">O CEP localiza um ponto aproximado. A posição da estação só muda após salvar com a chave administrativa.</p>
+          <small>Endereços: ViaCEP · Coordenadas: © OpenStreetMap</small>
+        </div>
+        <p id="mapDistance" class="map-geometry-info">Clique no mapa para calcular a distância até a estação e o vetor local de posição.</p>
         <div class="map-container">
           <div id="map"></div>
         </div>
@@ -307,8 +344,9 @@
           </button>
           <button id="btnClearHistory" class="btn-action btn-secondary" title="Limpar histórico da tela">
             <span class="material-symbols-rounded icon-sm">delete_outline</span>
-            Limpar
+            Limpar exibição
           </button>
+          <button id="btnRestoreHistory" class="btn-action btn-secondary" type="button" hidden>Restaurar histórico</button>
         </div>
       </div>
 
@@ -334,6 +372,12 @@
       </div>
     </section>
 
+    <nav class="history-pagination" aria-label="Páginas do histórico">
+      <button id="btnHistoryPrevious" type="button" class="btn-action" disabled>Anterior</button>
+      <span id="historyPageStatus" role="status" aria-live="polite">Página 1 de 1</span>
+      <button id="btnHistoryNext" type="button" class="btn-action" disabled>Próxima</button>
+      <small>8 registros por página. Limpar a exibição preserva os dados no banco.</small>
+    </nav>
     <!-- Painel de Especificações Técnicas (Inspirado na seção Specs do Figma) -->
     <section class="info-panel">
       <div class="info-header">
@@ -380,7 +424,7 @@
       <section class="hero-section hero-comparison">
         <div class="hero-badge">
           <span class="material-symbols-rounded icon-xs">apartment</span>
-          Microclima Local vs. Metrópole de São Paulo
+          Microclima local e referência regional
         </div>
         <h1 class="hero-title">Comparação em tempo real<span class="hero-dot">.</span></h1>
         <p class="hero-description">
@@ -394,17 +438,17 @@
           <span class="material-symbols-rounded icon-sm sp-meta-icon" id="compMetaIcon">location_city</span>
           <div>
             <strong id="compMetaLabel">Referência de Comparação:</strong>
-            <span class="sp-meta-station" id="compMetaStation">Referência Open-Meteo para São Paulo</span>
+            <span class="sp-meta-station" id="compMetaStation">Aguardando as coordenadas da estação</span>
           </div>
         </div>
         <div class="sp-meta-right">
           <!-- Seletor Segmentado: SP Capital vs. Minha Região (GPS) -->
           <div class="comp-toggle-group">
-            <button id="btnCompSP" class="btn-comp-mode active" title="Consultar referência Open-Meteo para São Paulo">
+            <button id="btnCompSP" class="btn-comp-mode" title="Consultar referência Open-Meteo para São Paulo">
               <span class="material-symbols-rounded icon-xs">location_city</span>
               SP Capital
             </button>
-            <button id="btnCompLocal" class="btn-comp-mode" title="Consultar referência para as coordenadas cadastradas da estação">
+            <button id="btnCompLocal" class="btn-comp-mode active" title="Consultar referência para as coordenadas cadastradas da estação">
               <span class="material-symbols-rounded icon-xs">my_location</span>
               Região da Estação
             </button>
@@ -471,10 +515,10 @@
                 <span class="side-unit">°C</span>
               </div>
               <div class="sp-extremes-row">
-                <span class="sp-extreme-pill min" title="Temperatura mínima registrada/prevista hoje em São Paulo">
+                <span class="sp-extreme-pill min" title="Temperatura mínima prevista hoje na região consultada">
                   <span class="material-symbols-rounded icon-xs">arrow_downward</span> Mín: <strong id="spTempMin">--°C</strong>
                 </span>
-                <span class="sp-extreme-pill max" title="Temperatura máxima registrada/prevista hoje em São Paulo">
+                <span class="sp-extreme-pill max" title="Temperatura máxima prevista hoje na região consultada">
                   <span class="material-symbols-rounded icon-xs">arrow_upward</span> Máx: <strong id="spTempMax">--°C</strong>
                 </span>
               </div>
@@ -609,13 +653,13 @@
                 <span class="material-symbols-rounded">nest_eco_leaf</span>
               </div>
               <div>
-                <h3 class="compare-card-title">Qualidade do Ar & Emissões</h3>
-                <span class="compare-card-sub">Estimativa MQ-135 e referência de poluentes em unidades distintas</span>
+                <h3 class="compare-card-title">Gases locais e qualidade do ar regional</h3>
+                <span class="compare-card-sub">Indicadores independentes: estimativa do sensor e índice ambiental</span>
               </div>
             </div>
             <div class="delta-badge" id="deltaAirBadge">
               <span class="delta-label">Comparabilidade</span>
-              <strong id="deltaAirVal">Não comparável</strong>
+              <strong id="deltaAirVal">Indicadores distintos</strong>
             </div>
           </div>
 
@@ -627,9 +671,9 @@
               </div>
               <div class="side-value-group">
                 <span class="side-value" id="compLocalAir">--</span>
-                <span class="side-unit">PPM</span>
+                <span class="side-unit" id="compLocalAirUnit">ppm estimado</span>
               </div>
-              <span class="side-sensor-hint">MQ-135: estimativa dependente de circuito e calibração</span>
+              <span class="side-sensor-hint">MQ-135: PPM estimado pela curva de álcool</span>
             </div>
 
             <div class="compare-divider">
@@ -643,9 +687,9 @@
               </div>
               <div class="side-value-group">
                 <span class="side-value" id="compSpAirIndex">--</span>
-                <span class="side-unit">AQI (US)</span>
+                <span class="side-unit">AQI — escala dos EUA</span>
               </div>
-              <span class="side-sensor-hint" id="compSpAirFormulaHint">AQI (US) e concentrações individuais</span>
+              <span class="side-sensor-hint" id="compSpAirFormulaHint">Índice sem unidade; não corresponde a ppm</span>
               <div class="sp-pollutants-grid">
                 <div class="sp-pollutant-item">
                   <span class="sp-pol-name">AQI:</span>
@@ -685,7 +729,7 @@
             <span class="material-symbols-rounded icon-xs">wb_cloudy</span>
             Referência externa Open-Meteo
           </span>
-          <h2 id="spOverviewTitle">Panorama Climático de São Paulo</h2>
+          <h2 id="spOverviewTitle">Panorama climático regional</h2>
           <p id="spOverviewSubtitle">Condições atmosféricas gerais aferidas para a metrópole</p>
         </div>
 
@@ -743,7 +787,7 @@
         </div>
         <h3 class="science-title">Entendendo a Diferença entre Microclima Local e Estação Central</h3>
         <p class="science-intro">
-          Diferenças entre os sensores e a referência Open-Meteo podem resultar de microclima, altitude, instalação ou calibração. Uma comparação isolada não identifica a causa:
+          Diferenças entre os sensores e a referência Open-Meteo podem resultar de microclima, altitude, instalação ou características dos sensores. Uma comparação isolada não identifica a causa:
         </p>
         <div class="science-reasons-grid">
           <div class="science-reason-card">
@@ -762,7 +806,7 @@
               <strong>Ventilação e Gradiente de Umidade</strong>
             </div>
             <p>
-              A instalação influencia as leituras de umidade e gases. O MQ-135 não identifica seletivamente cada poluente; seus valores dependem do circuito, aquecimento e calibração.
+              A instalação influencia as leituras de umidade e gases. O MQ-135 não identifica seletivamente cada poluente; seus valores são estimados e dependem do circuito e do aquecimento.
             </p>
           </div>
 
@@ -782,7 +826,7 @@
               <strong>Qualidade do ar e limites da comparação</strong>
             </div>
             <p>
-              O MQ-135 fornece uma estimativa dependente do circuito, aquecimento e calibração.
+              O MQ-135 fornece PPM estimado pela curva de álcool; circuito e aquecimento influenciam as leituras.
               Essa estimativa não constitui medição seletiva de CO₂ e não deve ser comparada diretamente
               ao AQI ou a concentrações de poluentes diferentes.
             </p>
@@ -799,13 +843,13 @@
         <strong>Atmosfera.</strong>
         <span>Estação Meteorológica ESP32 • MicroPython</span>
       </div>
-      <p>Disciplina 68F3 - Projeto e Desenvolvimento II • Engenharia da Computação</p>
+      <p>Disciplina 68F3 - Projeto e Desenvolvimento II • Ciências da Computação</p>
     </footer>
 
   </div>
 
   <!-- Lógica Principal do Dashboard -->
   <script src="config.js?v=3"></script>
-  <script src="app.js?v=3.4"></script>
+  <script src="app.js?v=20261108-busca-rua"></script>
 </body>
 </html>

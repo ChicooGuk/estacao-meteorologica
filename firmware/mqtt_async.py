@@ -54,10 +54,12 @@ class MQTTClient:
             raise OSError("MQTT PUBACK invalido")
 
     async def close(self):
-        if self.writer:
-            self.writer.close()
+        # Liberar o estado antes de fechar: close() tambem pode falhar.
+        writer = self.writer
+        self.reader = self.writer = None
+        if writer:
             try:
-                await asyncio.wait_for(self.writer.wait_closed(), 2)
+                writer.close()
+                await asyncio.wait_for(writer.wait_closed(), 2)
             except Exception:
                 pass
-        self.reader = self.writer = None

@@ -49,3 +49,23 @@ yarn-error.log*
 
 # Configuracao privada da placa
 firmware/config.py
+.esp32-backup/
+.estacao-local/
+
+# Backups privados e arquivos auxiliares de edição
+firmware/config.py.*
+webrepl_cfg.py
+tmp/
+outputs/
+Video final/
+*.dqy
+*.odc
+*.xlsx
+*.xls
+~$*
+
+# Gravações integrais e relatório com vídeos incorporados ficam fora do Git
+evidencias/**/*.mp4
+evidencias/**/*.m4a
+evidencias/**/*.ogg
+output/documentacao/V5-atualizada/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf

@@ -3,4 +3,9 @@ import gc
 import network
 import config
 network.WLAN(network.STA_IF).active(True)
+try:
+    import webrepl
+    webrepl.start()
+except Exception as exc:
+    print('[WEBREPL] Indisponivel:', exc)
 gc.collect()

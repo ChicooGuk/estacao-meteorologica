@@ -4,6 +4,18 @@
    Modo Claro / Modo Escuro • Animações de Entrada Escalonadas & Efeitos em Tempo Real
    ============================================================================== */
 
+.history-pagination { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:12px 0 28px; }
+[hidden] { display:none !important; }
+.history-pagination small { color:var(--text-secondary); }
+.history-panel .table-container { max-height:420px; overflow:auto; overscroll-behavior:contain; }
+.history-table thead th { position:sticky; top:0; background:var(--bg-card); z-index:1; }
+button:disabled { opacity:0.45; cursor:default; }
+.cep-search { padding: 16px; border-bottom: 1px solid var(--border-hairline); }
+.cep-search label { display: block; margin-bottom: 8px; font-weight: 600; }
+.cep-search-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.cep-search-row input { flex: 1 1 150px; min-width: 0; padding: 10px 12px; border: 1px solid var(--border-hairline); border-radius: 6px; background: var(--bg-page); color: var(--text-primary); font: inherit; }
+.cep-search p { margin-top: 8px; color: var(--text-secondary); font-size: 0.875rem; line-height: 1.5; }
+
 :root {
   /* Tipografia Exata do Figma Modern Product Launch */
   --font-figma-title: 'Radio Canada Big', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -2518,3 +2530,98 @@ button,
     flex: 1 1 100%;
   }
 }
+
+/* Movimento discreto: sem alterar dimensoes nem forcar layout na telemetria. */
+:is(.btn-action, .btn-comp-mode, .btn-theme, .btn-demo) {
+  transition: transform 180ms ease, background-color 180ms ease, color 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+}
+button:focus-visible, input:focus-visible, a:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 3px;
+}
+button:active:not(:disabled) { transform: translateY(1px); }
+.metric-value, .card-figma-value, .side-value, .stat-value {
+  font-variant-numeric: tabular-nums;
+}
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  .btn-action:hover, .btn-comp-mode:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgb(0 0 0 / 8%);
+  }
+  .compare-card { transition: box-shadow 220ms ease, border-color 220ms ease; }
+  .compare-card:hover { box-shadow: 0 6px 20px rgb(0 0 0 / 6%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Telemetria: reservar espaco e impedir oscilacao de layout entre leituras. */
+.card-content-wrap { min-width: 0; }
+.card-figma-value, .card-value-display { flex-wrap: wrap; min-height: 2.5rem; }
+.card-figma-number, .card-number { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.card-figma-desc { overflow-wrap: anywhere; }
+#stTemp, #stPress, #stUmid, #stAir, #stLight { min-height: 3.5em; }
+#mqRaw, #mqPeak { min-height: 4.5em; }
+.chart-panel { min-width: 0; }
+.chart-container { height: 340px; flex-grow: 0; }
+@media (max-width: 600px) { .chart-container { height: 310px; } }
+
+.metrics-grid .card-figma-title { min-height: 2.2em; }
+
+/* Desktop: manter os controles acessiveis durante a rolagem. */
+@media (min-width: 1024px) {
+  .main-header {
+    position: sticky;
+    top: 0;
+    z-index: 1100;
+    background: var(--bg-page) !important;
+    animation: none;
+  }
+}
+
+.card-figma-number.is-warming { font-size: 22px; line-height: 1.7; }
+.card-figma-unit[hidden] { display: none; }
+
+#mqWarmup { font-variant-numeric: tabular-nums; font-family: var(--font-sans); font-weight: 600; }
+#mqWarmup[hidden] { display: none; }
+
+/* Previa de aviso, separada dos alertas da telemetria. */
+.alert-demo-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:0 0 18px; }
+.alert-demo-toolbar > span { font-size:0.82rem; color:var(--text-secondary, #64748b); }
+.demo-alert {
+  position:fixed; right:24px; bottom:24px; z-index:1200;
+  width:min(380px, calc(100vw - 32px)); max-height:calc(100dvh - 48px);
+  overflow-y:auto; margin:0; padding:16px; gap:12px; align-items:flex-start;
+  border:1px solid #e4c18a; border-left:4px solid #c07813;
+  border-radius:14px; background:#fffcf5; color:#30291f;
+  box-shadow:0 12px 40px rgba(30,25,15,.18);
+  animation:demoNoticeIn .22s ease-out;
+}
+.demo-alert .alert-icon-wrapper { width:34px; height:34px; border-radius:10px; background:#f9e9c9; color:#925a08; }
+.demo-alert .alert-content { min-width:0; }
+.demo-alert-label { display:block; color:#81530f; font-size:.62rem; font-weight:800; letter-spacing:.07em; margin-bottom:5px; }
+.demo-alert .alert-content strong { display:block; font-size:.95rem; line-height:1.35; margin-bottom:5px; color:inherit; }
+.demo-alert .alert-content p { font-size:.78rem; line-height:1.5; opacity:1; color:#665a47; }
+.demo-alert .alert-close { flex-shrink:0; padding:0; width:26px; height:26px; color:#665a47; border-radius:6px; }
+.demo-alert .alert-close:hover { background:#f9e9c9; }
+.demo-alert .alert-close:focus-visible { outline:2px solid #c07813; outline-offset:2px; }
+.demo-alert #demoAlertTime { margin-top:8px; font-size:.68rem; color:#81715a; }
+[data-theme="dark"] .demo-alert { background:#20261f; color:#f5f3e9; border-color:#6c603b; border-left-color:#edbd62; box-shadow:0 12px 40px rgba(0,0,0,.45); }
+[data-theme="dark"] .demo-alert .alert-icon-wrapper { background:#393624; color:#f0c775; }
+[data-theme="dark"] .demo-alert .demo-alert-label { color:#f0c775; }
+[data-theme="dark"] .demo-alert .alert-content p,
+[data-theme="dark"] .demo-alert .alert-close { color:#d4d8ca; }
+[data-theme="dark"] .demo-alert #demoAlertTime { color:#adb5a4; }
+[data-theme="dark"] .demo-alert .alert-close:hover { background:#393624; }
+@keyframes demoNoticeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@media (max-width:600px) { .demo-alert { right:16px; bottom:16px; padding:13px; } }
+@media (prefers-reduced-motion:reduce) { .demo-alert { animation:none; } }
+/* O aviso real tem prioridade quando uma previa tambem estiver aberta. */
+.real-alert { z-index:1202; }
+.real-alert .alert-content p { white-space:pre-line; }
+body:has(#alertBanner:not(.hidden)) #demoAlertBanner:not(.hidden) { bottom:auto; top:90px; }
+.map-geometry-info { margin:12px 0 18px; padding:0 16px; font-size:.82rem; line-height:1.6; color:var(--text-secondary); overflow-wrap:anywhere; }

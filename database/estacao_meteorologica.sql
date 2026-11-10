@@ -41,5 +41,10 @@ CREATE TABLE IF NOT EXISTS leitura (
     qualidade JSON NULL,
     UNIQUE KEY uq_amostra (id_estacao, boot_id, sequencia),
     INDEX ix_estacao_tempo (id_estacao, data_hora),
-    CONSTRAINT fk_estacao FOREIGN KEY (id_estacao) REFERENCES estacao(id_estacao)
+    CONSTRAINT fk_estacao FOREIGN KEY (id_estacao) REFERENCES estacao(id_estacao),
+    CONSTRAINT ck_temperatura CHECK (temperatura IS NULL OR temperatura BETWEEN -40 AND 80),
+    CONSTRAINT ck_umidade CHECK (umidade IS NULL OR umidade BETWEEN 0 AND 100),
+    CONSTRAINT ck_pressao CHECK (pressao IS NULL OR pressao BETWEEN 300 AND 1200),
+    CONSTRAINT ck_qualidade_ar CHECK (qualidade_ar IS NULL OR qualidade_ar BETWEEN 0 AND 10000),
+    CONSTRAINT ck_luminosidade CHECK (luminosidade IS NULL OR luminosidade BETWEEN 0 AND 100000)
 );
