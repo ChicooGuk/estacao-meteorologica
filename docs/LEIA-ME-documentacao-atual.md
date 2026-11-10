@@ -1,10 +1,10 @@
 # Documentação atual
 
-O relatório atual é [V5 atualizada](../output/documentacao/V5-atualizada/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf), revisto em 09/11/2026 a partir da V5 preservada, do roteiro, de correcoes.md e da auditoria.
+O relatório atual é [V5 atualizada](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf), revisto em 09/11/2026 a partir da V5 preservada, do roteiro, de correcoes.md e da auditoria.
 
 O padrão visual da V5 foi mantido. O PDF contém os códigos completos, três vídeos CT e o esquema elétrico incorporados. A paginação e a contagem de figuras estão em Verificacao-final.json. Os anexos de vídeo são acessados pelo painel de anexos de um leitor de PDF compatível; o arquivo tem aproximadamente 273 MB.
 
-A declaração de IA está separada em PDF e DOCX na mesma pasta. O PDF foi renderizado para conferência; a paginação nativa do DOCX no Word não foi validada. A V5 original e a V6 auxiliar permanecem preservadas.
+A declaração de IA permanece separada em PDF e DOCX nos arquivos locais para conferência e assinatura dos integrantes. Não é apresentada no repositório como documento já assinado. O PDF foi renderizado para conferência; a paginação nativa do DOCX no Word não foi validada. A V5 original e a V6 auxiliar permanecem preservadas.
 
 O [registro da revisão](../output/documentacao/V5-atualizada/Registro-da-revisao.md) discrimina correções, verificações e os itens que dependem de medição, dados da montagem ou atos dos integrantes/instituição. A auditoria anterior foi conservada como histórico, sem reapresentar seus defeitos já corrigidos como estado atual.
 

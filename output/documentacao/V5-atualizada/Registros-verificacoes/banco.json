@@ -1,0 +1,71 @@
+{
+  "constraints": [
+    {
+      "CONSTRAINT_NAME": "PRIMARY",
+      "CONSTRAINT_TYPE": "PRIMARY KEY"
+    },
+    {
+      "CONSTRAINT_NAME": "uq_amostra",
+      "CONSTRAINT_TYPE": "UNIQUE"
+    },
+    {
+      "CONSTRAINT_NAME": "fk_estacao",
+      "CONSTRAINT_TYPE": "FOREIGN KEY"
+    }
+  ],
+  "ultimas": [
+    {
+      "id_leitura": 61613,
+      "temperatura": 22.2,
+      "umidade": 68.74,
+      "pressao": 929.4,
+      "qualidade_ar": 118.6,
+      "luminosidade": 7.3,
+      "data_hora": "2026-11-08 20:40:19",
+      "sequencia": 2837
+    },
+    {
+      "id_leitura": 61612,
+      "temperatura": 22.2,
+      "umidade": 68.76,
+      "pressao": 929.41,
+      "qualidade_ar": 65.77,
+      "luminosidade": 7.7,
+      "data_hora": "2026-11-08 20:40:16",
+      "sequencia": 2836
+    },
+    {
+      "id_leitura": 61611,
+      "temperatura": 22.2,
+      "umidade": 68.78,
+      "pressao": 929.41,
+      "qualidade_ar": 64.49,
+      "luminosidade": 7.8,
+      "data_hora": "2026-11-08 20:40:14",
+      "sequencia": 2835
+    },
+    {
+      "id_leitura": 61610,
+      "temperatura": 22.2,
+      "umidade": 68.82,
+      "pressao": 929.41,
+      "qualidade_ar": 60.6,
+      "luminosidade": 7.4,
+      "data_hora": "2026-11-08 20:40:11",
+      "sequencia": 2834
+    },
+    {
+      "id_leitura": 61609,
+      "temperatura": 22.2,
+      "umidade": 68.84,
+      "pressao": 929.4,
+      "qualidade_ar": 118.04,
+      "luminosidade": 7.3,
+      "data_hora": "2026-11-08 20:40:09",
+      "sequencia": 2833
+    }
+  ],
+  "contagem": {
+    "total": 61613
+  }
+}

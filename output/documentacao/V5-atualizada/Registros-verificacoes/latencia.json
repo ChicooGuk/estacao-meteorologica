@@ -1,0 +1,79 @@
+{
+  "metodo": "Timestamp de recebimento por assinante MQTT adicional até início da resposta HTTP no navegador; mesmo relógio do notebook; correlação por id_leitura e boot_id/sequencia no MySQL. Não inclui Wi-Fi anterior ao broker nem renderização DOM. Sem publicação de mensagens artificiais.",
+  "amostras": [
+    {
+      "id_leitura": 61774,
+      "sequencia": 2998,
+      "segundos": 2.8694798946380615
+    },
+    {
+      "id_leitura": 61775,
+      "sequencia": 2999,
+      "segundos": 2.521742105484009
+    },
+    {
+      "id_leitura": 61776,
+      "sequencia": 3000,
+      "segundos": 2.3299667835235596
+    },
+    {
+      "id_leitura": 61777,
+      "sequencia": 3001,
+      "segundos": 1.9170372486114502
+    },
+    {
+      "id_leitura": 61778,
+      "sequencia": 3002,
+      "segundos": 2.0979366302490234
+    },
+    {
+      "id_leitura": 61779,
+      "sequencia": 3003,
+      "segundos": 2.106783390045166
+    },
+    {
+      "id_leitura": 61780,
+      "sequencia": 3004,
+      "segundos": 2.115403175354004
+    },
+    {
+      "id_leitura": 61781,
+      "sequencia": 3005,
+      "segundos": 2.114459753036499
+    },
+    {
+      "id_leitura": 61782,
+      "sequencia": 3006,
+      "segundos": 2.0850367546081543
+    },
+    {
+      "id_leitura": 61783,
+      "sequencia": 3007,
+      "segundos": 2.1031012535095215
+    },
+    {
+      "id_leitura": 61784,
+      "sequencia": 3008,
+      "segundos": 1.8845937252044678
+    },
+    {
+      "id_leitura": 61785,
+      "sequencia": 3009,
+      "segundos": 2.0012593269348145
+    },
+    {
+      "id_leitura": 61786,
+      "sequencia": 3010,
+      "segundos": 2.267395257949829
+    },
+    {
+      "id_leitura": 61787,
+      "sequencia": 3011,
+      "segundos": 2.039954662322998
+    }
+  ],
+  "n": 14,
+  "minimo_s": 1.8845937252044678,
+  "mediana_s": 2.1049423217773438,
+  "maximo_s": 2.8694798946380615
+}

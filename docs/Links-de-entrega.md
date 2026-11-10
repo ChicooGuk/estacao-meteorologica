@@ -3,7 +3,7 @@
 - [Vídeo técnico final no Google Drive](https://drive.google.com/file/d/1rDi3x3PGuDIEpWoTzMO3SIER7SXuflYL/view?usp=sharing)
 - [Apresentação executiva revisada em PDF](../output/apresentacao/revisada/Apresentacao%20Estacao%20Meteorologica%20-%20terceira%20conferencia%20final.pdf)
 - [Apresentação executiva editável](../output/apresentacao/revisada/Apresentacao%20Estacao%20Meteorologica%20-%20terceira%20conferencia%20final.pptx)
-- [Relatório técnico V5 atualizado](../output/documentacao/V5-atualizada/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf)
+- [Relatório técnico V5 atualizado](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf)
 
 O link do vídeo foi fornecido pela equipe em 10/11/2026, com compartilhamento público informado. Os arquivos locais precisam acompanhar a entrega ou ser publicados com acesso ao avaliador; um caminho local não concede acesso externo.
 

@@ -6,6 +6,8 @@ Projeto integrador de **Ciências da Computação**, disciplina **68F3 — Proje
 
 **Vídeo técnico final:** [assistir à demonstração completa no Google Drive](https://drive.google.com/file/d/1rDi3x3PGuDIEpWoTzMO3SIER7SXuflYL/view?usp=sharing).
 
+**Relatório técnico atualizado:** [baixar o PDF completo com vídeos de testes incorporados](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf).
+
 **Apresentação executiva:** [PDF revisado](output/apresentacao/revisada/Apresentacao%20Estacao%20Meteorologica%20-%20terceira%20conferencia%20final.pdf) e [PowerPoint editável](output/apresentacao/revisada/Apresentacao%20Estacao%20Meteorologica%20-%20terceira%20conferencia%20final.pptx).
 
 **Dashboard:** [estacao-metedologica.web.app](https://estacao-metedologica.web.app/). A página permanece hospedada no Firebase; novas leituras dependem da placa, da rede e dos serviços ativos no notebook.
@@ -57,9 +59,9 @@ Esse procedimento **não comprova precisão absoluta em lux**. Comparação com 
 
 Montagem atual: D35, ADC com 0 dB, divisor AO → 10 kΩ → D35 → 20 kΩ → GND e terra comum. DO desconectado; LDR em D34. Alimentação assumida de 4,90 V; RL de 1 kΩ identificado pelo usuário. O divisor deixa dois terços da tensão de AO na entrada; não fornece margem confortável se AO chegar a 5 V. Conferir tensão e tolerâncias antes de qualquer exposição elevada.
 
-O firmware transmite ADC bruto e `mq135_tensao_adc_v` mesmo com ppm desativado. A configuração local prepara uma estimativa equivalente de álcool, com curva publicada, referência ambiental provisória e limites de 10–300 ppm. O exemplo público mantém R0 vazio e a conversão desligada. A configuração precisa ser gravada por USB para produzir efeito; a preparação local não atualiza a ESP32 pelo Wi-Fi.
+O firmware transmite ADC bruto e `mq135_tensao_adc_v`. Na configuração utilizada na apresentação, a estimativa equivalente de álcool está habilitada, com referência virtual de 0,045 V. O exemplo público mantém R0 vazio e a conversão desligada até que a configuração da montagem seja preenchida. Alterações no arquivo local precisam ser transferidas para a ESP32 para produzir efeito.
 
-O card usa PPM estimado e indica <10 ou >300 fora da faixa do modelo, sem extrapolar valores numéricos. Histórico e gráfico preservam null nesses casos. O modelo não identifica gases, não mede concentrações de misturas e não equivale ao AQI regional. Resposta ao álcool ou combustível não valida concentração. A estabilidade do sinal não comprova precisão de ppm.
+O card permite mostrar estimativas positivas abaixo de 10 PPM e indica >300 quando o resultado ultrapassa o limite configurado. Nos casos sem valor numérico, histórico e gráfico preservam null. Durante o aquecimento, a estimativa pode aparecer com aviso e contagem regressiva de três minutos. O modelo não identifica gases, não mede concentrações de misturas e não equivale ao AQI regional. Resposta ao álcool ou combustível não valida concentração. A estabilidade do sinal não comprova precisão de PPM.
 
 Veja [modelo de álcool, fontes, cálculo de R0 provisório e hipóteses](docs/estimativa-alcool-mq135.md). As condições ambientais, a alimentação assumida e a marca não confirmada da cápsula limitam a transferência da curva. O temporizador de três minutos não substitui o condicionamento inicial.
 

@@ -1,0 +1,24 @@
+{
+  "executado_em": "2026-11-08T23:45:38.750Z",
+  "ambiente": "Chrome headless, Windows; larguras CSS; sem dispositivo físico",
+  "results": [
+    {
+      "width": 1366,
+      "scroll": 1366,
+      "status": "Online (OK)",
+      "temp": "22.2",
+      "air": "124.3",
+      "errors": [],
+      "demonstracao": "air\nDEMONSTRAÇÃO · MQ-135\nALERTA: variação na qualidade do ar\n\nO sinal do MQ-135 apresentou uma elevação abrupta. Verifique possíveis fontes de vapores e as condições de ventilação. A leitura não identifica a substância nem confirma uma concentração perigosa.\n\n20:45:30 · Dados de exemplo\n\n×"
+    },
+    {
+      "width": 390,
+      "scroll": 390,
+      "status": "Online (OK)",
+      "temp": "22.2",
+      "air": "129",
+      "errors": [],
+      "demonstracao": "air\nDEMONSTRAÇÃO · MQ-135\nALERTA: variação na qualidade do ar\n\nO sinal do MQ-135 apresentou uma elevação abrupta. Verifique possíveis fontes de vapores e as condições de ventilação. A leitura não identifica a substância nem confirma uma concentração perigosa.\n\n20:45:38 · Dados de exemplo\n\n×"
+    }
+  ]
+}
