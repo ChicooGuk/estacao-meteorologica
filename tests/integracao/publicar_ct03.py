@@ -6,8 +6,8 @@ from pathlib import Path
 import paho.mqtt.client as mqtt
 from dotenv import load_dotenv
 
-# Configuração privada já usada pelo backend.
-load_dotenv(Path(__file__).resolve().parent / "backend" / ".env")
+# Parametros MQTT e de ambiente da instalacao.
+load_dotenv(Path(__file__).resolve().parents[2] / "backend" / ".env")
 
 identificador = "ct03_150_" + str(int(time.time()))
 

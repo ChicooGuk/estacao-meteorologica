@@ -2,7 +2,7 @@
 from statistics import median
 
 FIELDS = ("temperatura", "umidade", "pressao", "qualidade_ar", "luminosidade")
-# Limiares demonstrativos, nas unidades dos campos; conferir em bancada.
+# Limiares do filtro temporal, nas unidades de cada grandeza.
 JUMPS = {"temperatura": 10, "umidade": 25, "pressao": 20,
          "qualidade_ar": 1500, "luminosidade": 10000}
 

@@ -1,4 +1,4 @@
-# Copie como config.py no ESP32 e preencha apenas na copia privada.
+# Configuracao de exemplo. Salvar a configuracao da instalacao como config.py.
 WIFI_SSID = "SUA_REDE"
 WIFI_PASS = "SUA_SENHA"
 # Redes tentadas em ordem. Use o IP do notebook em cada rede para mqtt_host.
@@ -27,18 +27,17 @@ LDR_DARK_MARGIN_ADC = 20
 MQ135_WARMUP_MS = 180000
 # Habilitar somente apos conferir circuito e baseline em ambiente de referencia.
 MQ135_CALIBRATION_ENABLED = False
-# R0 deve corresponder a curva escolhida; ver docs/estimativa-alcool-mq135.md.
+# R0 corresponde ao modelo escolhido; ver docs/guias/HARDWARE.md.
 MQ135_R0_KOHM = None
 # AO -- 10k -- GPIO35 -- 20k -- GND; terra comum; DO desconectado.
-# Alimentacao assumida pelo usuario, nao medida nesta montagem.
+# Tensao de alimentacao adotada pelo modelo eletrico, em volts.
 MQ135_SUPPLY_V = 4.90
 MQ135_DIVIDER_TOP_KOHM = 10.0
 MQ135_DIVIDER_BOTTOM_KOHM = 20.0
-# RL = resistor 102 central de 1 kOhm; identificado e confirmado pelo usuario por inspecao das trilhas.
+# Resistencia de carga RL do modulo, em kOhm.
 MQ135_LOAD_KOHM = 1.0
 # Curva documentada para um gas, compativel com a referencia usada em R0.
-# Faixas do anuncio: amonia/alcool 10-300 ppm; benzeno 10-1000 ppm.
-# Esses limites NAO fornecem os coeficientes nem calibram o sensor.
+# Modelo equivalente de alcool; coeficientes conforme MQSensorsLib.
 MQ135_TARGET_GAS = "alcool_equivalente"
 MQ135_CURVE_A = 77.255
 MQ135_CURVE_B = -3.18
