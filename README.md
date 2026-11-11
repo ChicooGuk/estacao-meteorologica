@@ -12,7 +12,7 @@ A estação realiza o monitoramento local de temperatura, umidade, pressão, lum
 |---|---|
 | Relatório técnico e evidências em vídeo | [Download do PDF completo](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf) |
 | Apresentação executiva | [PDF](docs/apresentacao/apresentacao.pdf) · [PowerPoint](docs/apresentacao/apresentacao.pptx) |
-| Esquema elétrico e pinagem | [Esquema da estação](docs/esquemas/esquema-eletrico.pdf) |
+| Montagem no Fritzing e pinagem | [PDF do esquema](docs/esquemas/esquema-eletrico.pdf) · [Projeto editável e imagens](Fritzing/) |
 | Registros dos testes | [Procedimentos e resultados CT01–CT04](docs/guias/TESTES.md) |
 | Interface web | [Dashboard](https://estacao-metedologica.web.app/) |
 

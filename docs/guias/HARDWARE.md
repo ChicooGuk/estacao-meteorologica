@@ -1,6 +1,6 @@
 # Hardware e condicionamento dos sinais
 
-O [esquema elétrico](../esquemas/esquema-eletrico.pdf) apresenta as conexões externas e a disposição dos pinos da ESP32.
+O [PDF da montagem no Fritzing e pinagem](../esquemas/esquema-eletrico.pdf) apresenta as conexões externas e a disposição dos pinos da ESP32. O [projeto editável e suas exportações](../../Fritzing/) estão disponíveis para consulta e reprodução. A fonte YwRobot utilizada na figura representa visualmente a HW-131; as identificações de 5 V e 3,3 V indicam a configuração real da montagem.
 
 ## Alimentação e pinagem
 

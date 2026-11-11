@@ -6,7 +6,8 @@
 - [Apresentação executiva em PDF](apresentacao/apresentacao.pdf).
 - [Apresentação editável](apresentacao/apresentacao.pptx).
 - [Vídeo de demonstração](https://drive.google.com/file/d/1rDi3x3PGuDIEpWoTzMO3SIER7SXuflYL/view?usp=sharing).
-- [Esquema elétrico e pinagem](esquemas/esquema-eletrico.pdf).
+- [Montagem no Fritzing e pinagem em PDF](esquemas/esquema-eletrico.pdf).
+- [Projeto editável e exportações do Fritzing](../Fritzing/).
 
 ## Guias técnicos
 

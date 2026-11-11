@@ -14,3 +14,7 @@
 *.jpg binary
 *.jpeg binary
 *.gif binary
+
+*.fzz binary
+*.fzpz binary
+*.fzbz binary
