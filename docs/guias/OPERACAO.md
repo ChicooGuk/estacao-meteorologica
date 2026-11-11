@@ -19,17 +19,27 @@ Os atalhos pressupõem a instalação e a configuração dos respectivos serviç
 | Documentação da API | `http://localhost:8000/docs` |
 | Leituras recentes | `http://localhost:8000/api/leituras/ultimas-24h?id_estacao=1` |
 
-## Acesso pela hospedagem web
+## Acesso público pelo Firebase e Cloudflare
 
-O frontend é publicado no Firebase Hosting. Para receber dados fora da rede local, a API precisa de um endereço HTTPS acessível, configurado em `dashboard/config.js` e autorizado em `CORS_ORIGINS`.
+O site continua em https://estacao-metedologica.web.app/. O Cloudflare encaminha as consultas HTTPS para a API do notebook; a ESP32 continua publicando no broker MQTT local. As limitações do Quick Tunnel estão descritas na [documentação oficial](https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/).
 
-Os atalhos `iniciar_ngrok.bat` e `iniciar_cloudflare.bat` oferecem alternativas de encaminhamento da API, com o cliente correspondente instalado e configurado. A comunicação da placa com o broker MQTT permanece na rede local. O computador que executa o backend, o banco e o broker precisa permanecer ligado durante a coleta.
+1. Conectar o notebook e a ESP32 à rede configurada.
+2. Confirmar MySQL e Mosquitto com `iniciar_servicos.bat`.
+3. Iniciar `iniciar_backend.bat` e conferir `http://localhost:8000/`.
+4. Executar `iniciar_cloudflare.bat`. O iniciador valida a API, cria ou reutiliza o túnel, atualiza a configuração pública e publica somente o Hosting no Firebase.
+5. Aguardar a mensagem `SITE PUBLICO` e testar o site pelo celular com dados móveis.
 
-Com Firebase CLI instalado e conta autorizada, a publicação da interface utiliza:
+O Firebase CLI deve estar instalado e autenticado previamente com `firebase login`. O iniciador não exibe as credenciais de login. Os domínios do Firebase precisam estar em `CORS_ORIGINS` no arquivo privado do backend.
 
-```powershell
-firebase deploy --only hosting --project estacao-metedologica
-```
+Manter o notebook conectado, o backend e o iniciador Cloudflare abertos, e MySQL e Mosquitto em funcionamento. O endereço temporário da API muda ao criar um novo túnel: executar novamente o iniciador faz a republicação, mantendo o endereço do site Firebase. Outra execução enquanto o iniciador estiver ativo não cria um túnel duplicado.
+
+Para encerrar o túnel, executar `encerrar_cloudflare.bat`; se iniciado em uma janela visível, também é possível usar Ctrl+C. O iniciador encerra somente o processo que criou. Uma instância reutilizada não é encerrada pelo segundo iniciador. O acesso local continua funcionando quando o túnel termina, desde que o backend esteja aberto.
+
+Se a verificação pública ou a publicação falhar, a configuração anterior é preservada ou restaurada. As cópias de configuração e os registros ficam em `.estacao-local/cloudflare/`, fora do repositório. Corrigir a falha antes de anunciar o restabelecimento do acesso público.
+
+Se o endereço `trycloudflare.com` não resolver, conferir o DNS da rede antes de publicar. O iniciador não altera o DNS do Windows. No notebook da apresentação, o ajuste de DNS deve ser autorizado pelo responsável; guardar a configuração anterior para restauração.
+
+O Quick Tunnel é temporário e não possui garantia de disponibilidade. Fechar o notebook ou perder a conexão interrompe as atualizações públicas. Ele não transforma a instalação local em hospedagem permanente. O ngrok permanece como alternativa antiga e não é utilizado pelo fluxo atual.
 
 ## Recursos da interface
 

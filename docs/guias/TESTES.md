@@ -20,7 +20,7 @@ Na raiz do repositório:
 ```powershell
 .\.venv314\Scripts\python.exe -m pip install -r backend\requirements-test.txt
 .\.venv314\Scripts\python.exe -m unittest discover -s tests -p test_pipeline.py
-node --test tests/test_dashboard.cjs tests/test_location.cjs tests/test_locations.cjs tests/test_requirements.cjs
+node --test tests/test_dashboard.cjs tests/test_location.cjs tests/test_locations.cjs tests/test_requirements.cjs tests/test_config.cjs
 ```
 
 ## Reprodução do CT03
@@ -31,4 +31,8 @@ Com broker e backend em execução e `backend/.env` configurado:
 .\.venv314\Scripts\python.exe tests/integracao/publicar_ct03.py
 ```
 
-O programa publica uma mensagem identificada com temperatura de 150 °C. A confirmação MQTT indica recepção pelo broker; a rejeição é verificada no backend. O identificador exibido permite consultar a ausência do registro inválido no banco.
+O programa pública uma mensagem identificada com temperatura de 150 °C. A confirmação MQTT indica recepção pelo broker; a rejeição é verificada no backend. O identificador exibido permite consultar a ausência do registro inválido no banco.
+
+## Iniciador Cloudflare
+
+Executar `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/test_cloudflare.ps1` para verificar a extração de endereços, a geração de configuração e a identidade do processo. Esses testes não iniciam túnel nem publicam no Firebase. A verificação de rede real exige API, Cloudflare e Firebase em execução.
