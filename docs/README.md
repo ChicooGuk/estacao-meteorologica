@@ -1,5 +1,7 @@
 # Documentação do projeto
 
+[Índice dos materiais de entrega](Links-de-entrega.md).
+
 ## Materiais acadêmicos
 
 - [Relatório técnico completo](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf), com códigos e vídeos de testes incorporados.

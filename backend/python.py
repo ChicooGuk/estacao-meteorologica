@@ -19,6 +19,7 @@ from pydantic import BaseModel, Field, ConfigDict, ValidationError, model_valida
 from pathlib import Path
 
 from filtros import FIELDS, JUMPS, filtrar, referencias_validas, media_movel
+from observabilidade import ObservabilidadeHTTP
 
 log = logging.getLogger("estacao")
 if not log.handlers:
@@ -256,23 +257,17 @@ app = FastAPI(title="Estacao Meteorologica", lifespan=lifespan)
 app.add_middleware(CORSMiddleware,
     allow_origins=[s for s in os.getenv("CORS_ORIGINS", "http://localhost:5500").split(",") if s],
     allow_methods=["GET", "POST", "PUT"], allow_headers=["Content-Type", "Authorization", "ngrok-skip-browser-warning"],
-    max_age=3600)
+    expose_headers=["X-Request-ID", "Server-Timing"], max_age=3600)
 
 
-@app.middleware("http")
-async def medir_api(request, call_next):
-    inicio = time.perf_counter()
-    status_code = 500
-    try:
-        response = await call_next(request)
-        status_code = response.status_code
-        response.headers["Server-Timing"] = "api;dur=%.2f" % ((time.perf_counter() - inicio) * 1000)
-        return response
-    finally:
-        if request.url.path.startswith("/api/"):
-            log.info("API metodo=%s rota=%s status=%s duracao_ms=%.2f",
-                     request.method, request.url.path, status_code,
-                     (time.perf_counter() - inicio) * 1000)
+app.add_middleware(ObservabilidadeHTTP,
+    origins=[s.strip() for s in os.getenv("CORS_ORIGINS", "http://localhost:5500").split(",") if s.strip()])
+
+
+@app.get("/api/saude")
+async def saude():
+    """Verifica o processo HTTP sem consultar banco ou divulgar configuracoes."""
+    return {"status": "ok", "servidor_utc": time.time()}
 
 
 def autorizar_ingestao(authorization: str | None = Header(default=None)):

@@ -20,7 +20,7 @@ Na raiz do repositório:
 ```powershell
 .\.venv314\Scripts\python.exe -m pip install -r backend\requirements-test.txt
 .\.venv314\Scripts\python.exe -m unittest discover -s tests -p test_pipeline.py
-node --test tests/test_dashboard.cjs tests/test_location.cjs tests/test_locations.cjs tests/test_requirements.cjs tests/test_config.cjs
+node --test tests/test_dashboard.cjs tests/test_location.cjs tests/test_locations.cjs tests/test_requirements.cjs tests/test_config.cjs tests/test_diagnostico.cjs tests/test_cancelamento.cjs
 ```
 
 ## Reprodução do CT03
@@ -36,3 +36,7 @@ O programa pública uma mensagem identificada com temperatura de 150 °C. A conf
 ## Iniciador Cloudflare
 
 Executar `powershell.exe -NoProfile -ExecutionPolicy Bypass -File tests/test_cloudflare.ps1` para verificar a extração de endereços, a geração de configuração e a identidade do processo. Esses testes não iniciam túnel nem publicam no Firebase. A verificação de rede real exige API, Cloudflare e Firebase em execução.
+
+## Observabilidade HTTP
+
+Executar `.\.venv314\Scripts\python.exe -m unittest discover -s tests -p test_observabilidade.py` para verificar a contagem de blocos da resposta, falhas de transmissão, identificação das requisições, exposição seletiva de cabeçalhos e independência da rota de saúde em relação ao banco. O teste de cancelamento do dashboard verifica falhas antes dos cabeçalhos e durante o JSON, ausência de consultas sobrepostas e recuperação com uma leitura válida. Esses testes controlados não substituem o ensaio de rede descrito no [guia de diagnóstico](DIAGNOSTICO.md).

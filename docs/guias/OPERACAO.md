@@ -53,3 +53,7 @@ O Quick Tunnel é temporário e não possui garantia de disponibilidade. Fechar 
 As ações de limpar e restaurar a exibição alteram a visualização do histórico no navegador; os registros do MySQL são preservados. A edição da localização exige a chave administrativa da instalação.
 
 Os campos do MQ-135 distinguem ADC bruto e PPM estimado. Durante os três minutos iniciais, o dashboard apresenta a indicação de aquecimento. Dados demonstrativos não são inseridos no banco como medições da estação.
+
+## Diagnóstico de atualização
+
+Para comparar o acesso externo com o backend local, seguir o [guia de diagnóstico](DIAGNOSTICO.md). O resultado inclui falhas e visibilidade da página; o arquivo precisa ser baixado ao concluir o teste.
