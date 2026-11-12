@@ -10,7 +10,8 @@ A estação realiza o monitoramento local de temperatura, umidade, pressão, lum
 
 | Material | Acesso |
 |---|---|
-| Relatório técnico e evidências em vídeo | [Download do PDF completo](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf) |
+| Relatório técnico atualizado (PDF) | [Download do PDF](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf) |
+| Vídeos dos testes (CT01 e CT02) | [CT01 – DHT22](https://drive.google.com/file/d/1Sw3NbrNBVZOYQeTTtPc6pFnK_i4mDOZQ/view?usp=sharing) · [CT02 – Dashboard](https://drive.google.com/file/d/1v4fIG_g7nGPLTjaUdp_5eMmhDr3yPDVp/view?usp=sharing) · [CT02 – Backend](https://drive.google.com/file/d/14fCxDULKh0-htDRenVgOXbbvcwPuFd3K/view?usp=sharing) |
 | Apresentação executiva | [PDF](docs/apresentacao/apresentacao.pdf) · [PowerPoint](docs/apresentacao/apresentacao.pptx) |
 | Montagem no Fritzing e pinagem | [PDF do esquema](docs/esquemas/esquema-eletrico.pdf) · [Projeto editável e imagens](Fritzing/) |
 | Registros dos testes | [Procedimentos e resultados CT01–CT04](docs/guias/TESTES.md) |

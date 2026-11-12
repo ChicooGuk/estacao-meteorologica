@@ -71,6 +71,7 @@ evidencias/**/*.ogg
 output/documentacao/V5-atualizada/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf
 
 # Arquivos de trabalho preservados localmente, fora da entrega publicada
+/_arquivo-local/
 /output/
 /evidencias/
 /docs/*.pdf

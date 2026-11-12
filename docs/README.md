@@ -4,7 +4,8 @@
 
 ## Materiais acadêmicos
 
-- [Relatório técnico completo](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf), com códigos e vídeos de testes incorporados.
+- [Relatório técnico atualizado (PDF)](https://github.com/ChicooGuk/estacao-meteorologica/releases/download/entrega-2026-11-10/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf).
+- Vídeos dos testes (Google Drive): [CT01 – DHT22](https://drive.google.com/file/d/1Sw3NbrNBVZOYQeTTtPc6pFnK_i4mDOZQ/view?usp=sharing) · [CT02 – Dashboard](https://drive.google.com/file/d/1v4fIG_g7nGPLTjaUdp_5eMmhDr3yPDVp/view?usp=sharing) · [CT02 – Backend](https://drive.google.com/file/d/14fCxDULKh0-htDRenVgOXbbvcwPuFd3K/view?usp=sharing).
 - [Apresentação executiva em PDF](apresentacao/apresentacao.pdf).
 - [Apresentação editável](apresentacao/apresentacao.pptx).
 - [Vídeo de demonstração](https://drive.google.com/file/d/1rDi3x3PGuDIEpWoTzMO3SIER7SXuflYL/view?usp=sharing).
