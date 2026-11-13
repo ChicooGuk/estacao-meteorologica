@@ -68,7 +68,7 @@ Video final/
 evidencias/**/*.mp4
 evidencias/**/*.m4a
 evidencias/**/*.ogg
-output/documentacao/V5-atualizada/Documentacao_Estacao_Meteorologica_V5_atualizada.pdf
+output/documentacao/V5-atualizada/Documentacao_Estacao_Meteorologica.pdf
 
 # Arquivos de trabalho preservados localmente, fora da entrega publicada
 /_arquivo-local/
